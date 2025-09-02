@@ -1,0 +1,50 @@
+[
+  {
+    "name": "gpt-4o",
+    "display_name": "GPT-4o",
+    "provider": "OpenAI",
+    "description": "GPT-4o (o for 'omni') is OpenAI's latest large multimodal model that excels at vision tasks, audio, reasoning, and coding with high performance.",
+    "has_json_mode": true,
+    "needs_api_key": true,
+    "context_window": 128000,
+    "supports_functions": true,
+    "supports_vision": true,
+    "token_limit": 128000
+  },
+  {
+    "name": "gpt-4-turbo",
+    "display_name": "GPT-4 Turbo",
+    "provider": "OpenAI",
+    "description": "GPT-4 Turbo offers the best balance between intelligence and speed, with a large 128K context window.",
+    "has_json_mode": true,
+    "needs_api_key": true,
+    "context_window": 128000,
+    "supports_functions": true,
+    "supports_vision": false,
+    "token_limit": 128000
+  },
+  {
+    "name": "gpt-4",
+    "display_name": "GPT-4",
+    "provider": "OpenAI",
+    "description": "Most capable GPT-4 model for complex tasks with a 8K context window.",
+    "has_json_mode": true,
+    "needs_api_key": true,
+    "context_window": 8192,
+    "supports_functions": true,
+    "supports_vision": false,
+    "token_limit": 8192
+  },
+  {
+    "name": "gpt-3.5-turbo",
+    "display_name": "GPT-3.5 Turbo",
+    "provider": "OpenAI",
+    "description": "Fast and cost-effective model with a 16K context window.",
+    "has_json_mode": true,
+    "needs_api_key": true,
+    "context_window": 16385,
+    "supports_functions": true,
+    "supports_vision": false,
+    "token_limit": 16385
+  }
+]
