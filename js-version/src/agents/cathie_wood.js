@@ -7,7 +7,7 @@ import {
   getTechnicalIndicators,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 
 // Define the schema for Cathie Wood's analysis signal
@@ -136,7 +136,7 @@ export async function cathieWoodAgent(state, agentId = "cathie_wood_agent") {
   }
 
   // Show reasoning if requested
-  if (state.metadata.show_reasoning) {
+  if (state.metadata && state.metadata.show_reasoning) {
     showAgentReasoning(woodAnalysis, "Cathie Wood Agent");
   }
 
@@ -537,7 +537,8 @@ async function generateWoodOutput(ticker, analysisData, state, agentId) {
 
   try {
     // Parse the response and validate with Zod schema
-    const jsonResponse = JSON.parse(llmResponse);
+    const jsonResponse =
+      typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse;
     return CathieWoodSignalSchema.parse(jsonResponse);
   } catch (error) {
     console.error("Error parsing Cathie Wood LLM response:", error);

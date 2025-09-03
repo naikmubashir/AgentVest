@@ -6,7 +6,7 @@ import {
   searchLineItems,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 
 // Define the schema for Bill Ackman's analysis signal
@@ -138,7 +138,7 @@ export async function billAckmanAgent(state, agentId = "bill_ackman_agent") {
   }
 
   // Show reasoning if requested
-  if (state.metadata.show_reasoning) {
+  if (state.metadata && state.metadata.show_reasoning) {
     showAgentReasoning(ackmanAnalysis, "Bill Ackman Agent");
   }
 
@@ -159,7 +159,7 @@ export async function billAckmanAgent(state, agentId = "bill_ackman_agent") {
  * Also tries to infer brand strength if intangible_assets data is present (optional).
  *
  * @param {Array} metrics - Financial metrics data
- * @param {Array} financialLineItems - Financial line items
+ * @param {Object|Array} financialLineItems - Financial line items (object from mock data or array from API)
  * @returns {Object} - Analysis results
  */
 function analyzeBusinessQuality(metrics, financialLineItems) {
@@ -194,9 +194,14 @@ function analyzeBusinessQuality(metrics, financialLineItems) {
   }
 
   // Check revenue growth
-  const revenues = financialLineItems
-    .filter((item) => item.line_item === "revenue")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const revenueItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "revenue")
+    : financialLineItems.revenue || [];
+
+  const revenues = revenueItems.sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   if (revenues.length > 1) {
     const growthRates = [];
@@ -226,9 +231,12 @@ function analyzeBusinessQuality(metrics, financialLineItems) {
   }
 
   // Check free cash flow trends
-  const fcf = financialLineItems
-    .filter((item) => item.line_item === "free_cash_flow")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const fcfItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "free_cash_flow")
+    : financialLineItems.free_cash_flow || [];
+
+  const fcf = fcfItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (fcf.length > 0) {
     const positiveFCF = fcf.filter((item) => item.value > 0).length;
@@ -291,11 +299,16 @@ function analyzeFinancialDiscipline(metrics, financialLineItems) {
   }
 
   // Check dividends and capital returns
-  const dividends = financialLineItems
-    .filter(
-      (item) => item.line_item === "dividends_and_other_cash_distributions"
-    )
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const dividendItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter(
+        (item) => item.line_item === "dividends_and_other_cash_distributions"
+      )
+    : financialLineItems.dividends_and_other_cash_distributions || [];
+
+  const dividends = dividendItems.sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   if (dividends.length > 0) {
     const positiveDividends = dividends.filter((item) => item.value > 0).length;
@@ -309,13 +322,23 @@ function analyzeFinancialDiscipline(metrics, financialLineItems) {
   }
 
   // Check overall balance sheet strength
-  const assets = financialLineItems
-    .filter((item) => item.line_item === "total_assets")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const assetItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "total_assets")
+    : financialLineItems.totalAssets || [];
 
-  const liabilities = financialLineItems
-    .filter((item) => item.line_item === "total_liabilities")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const assets = assetItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const liabilityItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter(
+        (item) => item.line_item === "total_liabilities"
+      )
+    : financialLineItems.totalLiabilities || [];
+
+  const liabilities = liabilityItems.sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   if (assets.length > 0 && liabilities.length > 0 && assets[0].value > 0) {
     const liabToAssets = liabilities[0].value / assets[0].value;
@@ -341,7 +364,7 @@ function analyzeFinancialDiscipline(metrics, financialLineItems) {
 /**
  * Analyze the company's potential for activism
  *
- * @param {Array} financialLineItems - Financial line items
+ * @param {Object|Array} financialLineItems - Financial line items (object from mock data or array from API)
  * @returns {Object} - Analysis results
  */
 function analyzeActivismPotential(financialLineItems) {
@@ -356,15 +379,23 @@ function analyzeActivismPotential(financialLineItems) {
   }
 
   // Look for inefficient capital allocation
-  const fcf = financialLineItems
-    .filter((item) => item.line_item === "free_cash_flow")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const fcfItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "free_cash_flow")
+    : financialLineItems.free_cash_flow || [];
 
-  const dividends = financialLineItems
-    .filter(
-      (item) => item.line_item === "dividends_and_other_cash_distributions"
-    )
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const fcf = fcfItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const dividendItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter(
+        (item) => item.line_item === "dividends_and_other_cash_distributions"
+      )
+    : financialLineItems.dividends_and_other_cash_distributions || [];
+
+  const dividends = dividendItems.sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   if (fcf.length > 0 && dividends.length > 0 && fcf[0].value > 0) {
     const payoutRatio = dividends[0].value / fcf[0].value;
@@ -381,9 +412,14 @@ function analyzeActivismPotential(financialLineItems) {
   }
 
   // Check for operational inefficiency
-  const operatingMargins = financialLineItems
-    .filter((item) => item.line_item === "operating_margin")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const marginItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "operating_margin")
+    : financialLineItems.operating_margin || [];
+
+  const operatingMargins = marginItems.sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
 
   if (operatingMargins.length > 1) {
     const recentMargin = operatingMargins[0].value;
@@ -419,7 +455,7 @@ function analyzeActivismPotential(financialLineItems) {
 /**
  * Analyze the company's valuation and margin of safety
  *
- * @param {Array} financialLineItems - Financial line items
+ * @param {Object|Array} financialLineItems - Financial line items (object from mock data or array from API)
  * @param {Object} marketCap - Market cap data
  * @returns {Object} - Analysis results
  */
@@ -435,9 +471,12 @@ function analyzeValuation(financialLineItems, marketCap) {
   }
 
   // Check FCF yield
-  const fcf = financialLineItems
-    .filter((item) => item.line_item === "free_cash_flow")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const fcfItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "free_cash_flow")
+    : financialLineItems.free_cash_flow || [];
+
+  const fcf = fcfItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   if (fcf.length > 0 && fcf[0].value > 0 && marketCap.market_cap > 0) {
     const fcfYield = fcf[0].value / marketCap.market_cap;
@@ -455,13 +494,19 @@ function analyzeValuation(financialLineItems, marketCap) {
   }
 
   // Check asset value vs market cap
-  const assets = financialLineItems
-    .filter((item) => item.line_item === "total_assets")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const assetItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter((item) => item.line_item === "total_assets")
+    : financialLineItems.totalAssets || [];
 
-  const liabilities = financialLineItems
-    .filter((item) => item.line_item === "total_liabilities")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const assets = assetItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // Handle financialLineItems as object (from mock data) or array (from real API)
+  const liabilityItems = Array.isArray(financialLineItems)
+    ? financialLineItems.filter(
+        (item) => item.line_item === "total_liabilities"
+      )
+    : financialLineItems.totalLiabilities || [];
 
   if (assets.length > 0 && liabilities.length > 0 && marketCap.market_cap > 0) {
     const netAssetValue = assets[0].value - liabilities[0].value;
@@ -560,7 +605,8 @@ async function generateAckmanOutput(ticker, analysisData, state, agentId) {
 
   try {
     // Parse the response and validate with Zod schema
-    const jsonResponse = JSON.parse(llmResponse);
+    const jsonResponse =
+      typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse;
     return BillAckmanSignalSchema.parse(jsonResponse);
   } catch (error) {
     console.error("Error parsing Bill Ackman LLM response:", error);

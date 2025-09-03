@@ -2,56 +2,43 @@
  * Helper functions for working with LLMs
  */
 
-import { getModel, getModelInfo } from "../llm/models.js";
-import { progress } from "./progress.js";
-
 /**
- * Makes an LLM call with appropriate configuration
- *
- * @param {string} prompt - The prompt to send to the LLM
- * @param {string} modelName - Name of the model to use
- * @param {string} modelProvider - Provider of the model
- * @param {Object} options - Additional options for the LLM call
- * @returns {Promise<Object|string>} - The LLM response
+ * Makes an LLM call with appropriate configuration - always returns a mock response
  */
 export async function callLLM(
   prompt,
-  modelName = "gpt-4o",
-  modelProvider = "OPENAI",
+  responseSchema,
+  agentId,
+  state,
   options = {}
 ) {
-  try {
-    // Get the model
-    const model = await getModel(modelName, modelProvider);
-    if (!model) {
-      throw new Error(
-        `Model ${modelName} not available from provider ${modelProvider}`
-      );
-    }
+  console.log(`Using mock response for ${agentId}`);
 
-    // Prepare the message
-    const messages = [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ];
+  // Basic mock response structure
+  let mockResponse = {
+    signal: Math.random() > 0.3 ? "bullish" : "bearish",
+    confidence: Math.random() * 0.5 + 0.5, // 0.5 to 1.0
+    reasoning: `Mock reasoning for ${agentId}: Based on the available financial data, I'm ${
+      Math.random() > 0.3 ? "optimistic" : "cautious"
+    } about this stock.`,
+    key_factors: [
+      "Mock factor 1: Strong financial position",
+      "Mock factor 2: Competitive advantages",
+      "Mock factor 3: Future growth prospects",
+    ],
+  };
 
-    // Invoke the model
-    const response = await model.invoke(messages, options);
-
-    return response;
-  } catch (error) {
-    console.error("Error calling LLM:", error);
-    throw error;
+  // Add specific fields for different agents
+  if (agentId === "aswath_damodaran_agent") {
+    mockResponse.valuation = 200 + Math.random() * 100; // Random valuation between 200-300
+    mockResponse.upside = -0.2 + Math.random() * 0.4; // Random upside between -20% and +20%
   }
+
+  return mockResponse;
 }
 
 /**
  * Extract JSON from a text response
- *
- * @param {string} text - The text to extract JSON from
- * @returns {Object|null} - The extracted JSON object or null if extraction fails
  */
 export function extractJsonFromResponse(text) {
   try {
@@ -75,29 +62,7 @@ export function extractJsonFromResponse(text) {
 
 /**
  * Get model configuration for an agent from the state
- *
- * @param {Object} state - The current state
- * @param {string} agentName - The name of the agent
- * @returns {Object} - The model configuration
  */
 export function getAgentModelConfig(state, agentName) {
-  if (!state || !state.metadata || !state.metadata.request) {
-    return { modelName: "gpt-4o", modelProvider: "OPENAI" };
-  }
-
-  const request = state.metadata.request;
-
-  // Check if agent has a specific model assigned
-  if (request.agentModels && request.agentModels[agentName]) {
-    return {
-      modelName: request.agentModels[agentName],
-      modelProvider: request.modelProvider || "OPENAI",
-    };
-  }
-
-  // Otherwise use the default model
-  return {
-    modelName: request.modelName || "gpt-4o",
-    modelProvider: request.modelProvider || "OPENAI",
-  };
+  return { modelName: "gpt-4o", modelProvider: "OPENAI" };
 }

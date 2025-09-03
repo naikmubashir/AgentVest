@@ -9,7 +9,7 @@ import {
   getMarketSentiment,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 
 // Define the schema for Stanley Druckenmiller's analysis signal
@@ -58,7 +58,7 @@ export async function stanleyDruckenmillerAgent(
     const marketCap = await getMarketCap(ticker, endDate, apiKey);
 
     progress.updateStatus(agentId, ticker, "Getting company news");
-    const companyNews = await getCompanyNews(ticker, endDate, 20, apiKey);
+    const companyNews = await getCompanyNews(ticker, endDate, 20, 15, apiKey);
 
     progress.updateStatus(agentId, ticker, "Getting economic indicators");
     const economicData = await getEconomicIndicators(endDate, 365, apiKey);
@@ -566,6 +566,16 @@ Respond ONLY with a JSON object in this format:
 `;
 
   try {
+    // If mock data is being used, return a realistic response without calling LLM
+    if (state.metadata?.mock) {
+      return {
+        signal: "neutral",
+        confidence: 50,
+        reasoning: `Based on Stanley Druckenmiller's principles, ${ticker} shows balanced macro positioning with moderate momentum indicators.`,
+      };
+    }
+
+    // Only proceed to LLM call if not in mock mode
     const result = await callLLM(prompt, {
       model: state.metadata?.llm_model || "gpt-4",
       temperature: 0.1,
@@ -574,13 +584,22 @@ Respond ONLY with a JSON object in this format:
     });
 
     // Parse LLM response to get valid JSON
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No valid JSON found in LLM response");
-    }
+    let responseData;
 
-    const jsonStr = jsonMatch[0];
-    const responseData = JSON.parse(jsonStr);
+    if (typeof result === "object") {
+      // If result is already an object, use it directly
+      responseData = result;
+    } else if (typeof result === "string") {
+      // If result is a string, try to extract JSON
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON found in LLM response");
+      }
+      const jsonStr = jsonMatch[0];
+      responseData = JSON.parse(jsonStr);
+    } else {
+      throw new Error(`Unexpected result type: ${typeof result}`);
+    }
 
     // Validate with Zod schema
     return StanleyDruckenmillerSignalSchema.parse(responseData);

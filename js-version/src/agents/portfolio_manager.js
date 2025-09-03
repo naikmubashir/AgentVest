@@ -1,5 +1,5 @@
-import { ChatPromptTemplate } from "langchain/prompts";
-import { HumanMessage } from "langchain/schema";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { HumanMessage } from "@langchain/core/messages";
 import { progress } from "../utils/progress.js";
 import { callLLM } from "../utils/llm.js";
 import { showAgentReasoning } from "../graph/state.js";
@@ -84,21 +84,59 @@ export function portfolioManagementAgent(state, agentId = "portfolio_manager") {
   progress.updateStatus(agentId, null, "Generating trading decisions");
 
   // Generate the trading decision
-  const result = generateTradingDecision(
-    tickers,
-    signalsByTicker,
-    currentPrices,
-    maxShares,
-    portfolio,
-    agentId,
-    state
-  );
+  let result;
+
+  // If in mock mode, generate a simple mock response
+  if (state.metadata?.mock) {
+    // Create default decisions for each ticker
+    const decisions = {};
+    for (const ticker of tickers) {
+      // Randomly decide whether to buy, sell, or hold based on ticker
+      const possibleActions = ["buy", "sell", "hold"];
+      const action =
+        possibleActions[Math.floor(Math.random() * possibleActions.length)];
+
+      // Generate a quantity based on action
+      let quantity = 0;
+      if (action !== "hold") {
+        quantity = Math.floor(Math.random() * 10) + 1; // 1-10 shares
+      }
+
+      decisions[ticker] = {
+        action: action,
+        quantity: quantity,
+        confidence: Math.floor(Math.random() * 50) + 50, // 50-100 confidence
+        reasoning: `Mock reasoning for ${ticker}: Based on analyst signals, this appears to be a good ${
+          action === "buy"
+            ? "buying"
+            : action === "sell"
+            ? "selling"
+            : "holding"
+        } opportunity.`,
+      };
+    }
+    result = { decisions };
+  } else {
+    // Normal mode - call the LLM
+    result = generateTradingDecision(
+      tickers,
+      signalsByTicker,
+      currentPrices,
+      maxShares,
+      portfolio,
+      agentId,
+      state
+    );
+  }
 
   // Create the portfolio management message
+  // Ensure result and result.decisions exist before processing
+  const decisions = result?.decisions || {};
+
   const message = new HumanMessage({
     content: JSON.stringify(
       Object.fromEntries(
-        Object.entries(result.decisions).map(([ticker, decision]) => [
+        Object.entries(decisions).map(([ticker, decision]) => [
           ticker,
           decision,
         ])
@@ -108,10 +146,10 @@ export function portfolioManagementAgent(state, agentId = "portfolio_manager") {
   });
 
   // Print the decision if the flag is set
-  if (state.metadata.show_reasoning) {
+  if (state.metadata?.show_reasoning) {
     showAgentReasoning(
       Object.fromEntries(
-        Object.entries(result.decisions).map(([ticker, decision]) => [
+        Object.entries(decisions).map(([ticker, decision]) => [
           ticker,
           decision,
         ])
@@ -220,20 +258,20 @@ function generateTradingDecision(
         * SHORT: Open a new short position (quantity = shares to short)
 
       Output strictly in JSON with the following structure:
-      {
-        "decisions": {
-          "TICKER1": {
+      {{
+        "decisions": {{
+          "TICKER1": {{
             "action": "buy/sell/short/cover/hold",
             "quantity": integer,
             "confidence": float between 0 and 100,
             "reasoning": "string explaining your decision considering current position"
-          },
-          "TICKER2": {
+          }},
+          "TICKER2": {{
             ...
-          },
+          }},
           ...
-        }
-      }`,
+        }}
+      }}`,
     ],
   ]);
 

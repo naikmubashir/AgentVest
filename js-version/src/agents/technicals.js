@@ -2,7 +2,7 @@
  * Technicals Analyst Agent
  * Analyzes technical indicators and generates trading signals for multiple tickers.
  */
-import { HumanMessage } from "langchain/schema";
+import { HumanMessage } from "@langchain/core/messages";
 import { showAgentReasoning } from "../graph/state.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 import { progress } from "../utils/progress.js";
@@ -15,7 +15,7 @@ import { getTechnicalIndicators } from "../tools/api.js";
  * @param {string} agentId - The agent ID
  * @returns {Object} Updated state with technical analysis
  */
-export function technicalAnalystAgent(
+export async function technicalAnalystAgent(
   state,
   agentId = "technical_analyst_agent"
 ) {
@@ -31,7 +31,7 @@ export function technicalAnalystAgent(
     progress.updateStatus(agentId, ticker, "Fetching technical indicators");
 
     // Get the technical indicators
-    const indicators = getTechnicalIndicators(
+    const indicators = await getTechnicalIndicators(
       ticker,
       endDate,
       30, // 30 days of data
@@ -46,6 +46,8 @@ export function technicalAnalystAgent(
       );
       continue;
     }
+
+    console.log(`Technical indicators for ${ticker}:`, indicators[0]);
 
     // Analyze moving averages
     progress.updateStatus(agentId, ticker, "Analyzing moving averages");
@@ -120,7 +122,7 @@ export function technicalAnalystAgent(
   });
 
   // Print the reasoning if the flag is set
-  if (state.metadata.show_reasoning) {
+  if (state.metadata && state.metadata.show_reasoning) {
     showAgentReasoning(technicalAnalysis, "Technical Analysis Agent");
   }
 

@@ -1,16 +1,26 @@
 import dotenv from "dotenv";
 import chalk from "chalk";
-import inquirer from "inquirer";
+// Commented out as not needed for non-interactive mode
+// import inquirer from "inquirer";
 import { format } from "date-fns";
+import fs from "fs/promises";
 
 import { warrenBuffettAgent } from "./agents/warren_buffett.js";
 import { portfolioManagementAgent } from "./agents/portfolio_manager.js";
 import { riskManagementAgent } from "./agents/risk_manager.js";
 import { getAnalystNodes } from "./utils/analysts.js";
-import progress from "./utils/progress.js";
+import { progress } from "./utils/progress.js";
 import { LLM_ORDER, OLLAMA_LLM_ORDER, getModelInfo } from "./llm/models.js";
 import { ensureOllamaAndModel } from "./utils/ollama.js";
 import { saveGraphAsPng } from "./utils/visualize.js";
+
+// Create a log function
+async function log(message) {
+  console.log(message);
+  await fs
+    .appendFile("app-log.txt", message + "\n")
+    .catch((err) => console.error("Error writing to log file:", err));
+}
 
 // Load environment variables from .env file
 dotenv.config();
@@ -168,46 +178,21 @@ function printTradingOutput(state) {
  */
 async function main() {
   try {
-    // Get user input
-    const answers = await inquirer.prompt([
-      {
-        type: "input",
-        name: "tickers",
-        message: "Enter ticker symbols (comma separated):",
-        default: "AAPL,MSFT,GOOGL",
-        validate: (input) =>
-          input.length > 0 ? true : "Please enter at least one ticker",
-      },
-      {
-        type: "input",
-        name: "startDate",
-        message: "Enter start date (YYYY-MM-DD):",
-        default: format(
-          new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
-          "yyyy-MM-dd"
-        ),
-        validate: (input) =>
-          /^\d{4}-\d{2}-\d{2}$/.test(input)
-            ? true
-            : "Please enter a valid date format (YYYY-MM-DD)",
-      },
-      {
-        type: "input",
-        name: "endDate",
-        message: "Enter end date (YYYY-MM-DD):",
-        default: format(new Date(), "yyyy-MM-dd"),
-        validate: (input) =>
-          /^\d{4}-\d{2}-\d{2}$/.test(input)
-            ? true
-            : "Please enter a valid date format (YYYY-MM-DD)",
-      },
-      {
-        type: "confirm",
-        name: "showReasoning",
-        message: "Show agent reasoning?",
-        default: false,
-      },
-    ]);
+    await log("Starting AI Hedge Fund with default values...");
+
+    // Use default values without prompting
+    const answers = {
+      tickers: "AAPL,MSFT,GOOGL",
+      startDate: format(
+        new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        "yyyy-MM-dd"
+      ),
+      endDate: format(new Date(), "yyyy-MM-dd"),
+      showReasoning: false,
+    };
+
+    await log(`Using tickers: ${answers.tickers}`);
+    await log(`Date range: ${answers.startDate} to ${answers.endDate}`);
 
     // Parse tickers
     const tickers = answers.tickers
@@ -215,24 +200,43 @@ async function main() {
       .map((ticker) => ticker.trim().toUpperCase());
 
     // Run the hedge fund
-    const result = await runHedgeFund(
-      tickers,
-      answers.startDate,
-      answers.endDate,
-      { cash: 1000000 },
-      answers.showReasoning
-    );
+    await log("Starting runHedgeFund function...");
+    try {
+      const result = await runHedgeFund(
+        tickers,
+        answers.startDate,
+        answers.endDate,
+        { cash: 1000000 },
+        answers.showReasoning
+      );
 
-    // Print the results
-    printTradingOutput(result);
+      // Print the results
+      printTradingOutput(result);
+      await log("Analysis completed successfully.");
+    } catch (runError) {
+      await log(`Error running hedge fund: ${runError.message}`);
+      await log(`Error stack: ${runError.stack}`);
+    }
   } catch (error) {
-    console.error("Error running hedge fund:", error);
+    await log(`Main error: ${error.message}`);
+    await log(`Main error stack: ${error.stack}`);
   }
 }
 
 // Run the main function if this file is executed directly
-if (process.argv[1] === import.meta.url) {
+if (
+  process.argv[1] === new URL(import.meta.url).pathname ||
+  process.argv[1] === import.meta.url
+) {
+  console.log("Executing main function directly");
   main();
+} else {
+  console.log(
+    "Running as a module, argv[1]:",
+    process.argv[1],
+    "import.meta.url pathname:",
+    new URL(import.meta.url).pathname
+  );
 }
 
 export { parseHedgeFundResponse, printTradingOutput };

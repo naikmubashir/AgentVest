@@ -1,4 +1,4 @@
-import { HumanMessage } from "langchain/schema";
+import { HumanMessage } from "@langchain/core/messages";
 import { showAgentReasoning } from "../graph/state.js";
 import { progress } from "../utils/progress.js";
 import { getPrices, pricesToDf } from "../tools/api.js";
@@ -290,7 +290,7 @@ export function riskManagementAgent(state, agentId = "risk_management_agent") {
     name: agentId,
   });
 
-  if (state.metadata.show_reasoning) {
+  if (state.metadata?.show_reasoning) {
     showAgentReasoning(
       riskAnalysis,
       "Volatility-Adjusted Risk Management Agent"

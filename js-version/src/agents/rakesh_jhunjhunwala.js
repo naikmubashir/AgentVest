@@ -8,8 +8,35 @@ import {
   getEconomicIndicators,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
+
+/**
+ * Helper function to extract line item values, handling both array and object formats
+ * @param {Array|Object} financialLineItems - Financial line items in array or object format
+ * @param {string} lineItemName - The name of the line item to extract
+ * @returns {Array} - Array of values for the specified line item
+ */
+function extractLineItemValues(financialLineItems, lineItemName) {
+  if (!financialLineItems) {
+    return [];
+  }
+
+  // Handle array format
+  if (Array.isArray(financialLineItems)) {
+    return financialLineItems
+      .filter((item) => item.line_item === lineItemName)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map((item) => item.value);
+  }
+  // Handle object format
+  else if (typeof financialLineItems === "object") {
+    const item = financialLineItems[lineItemName];
+    return item && item.value !== undefined ? [item.value] : [];
+  }
+
+  return [];
+}
 
 // Define the schema for Rakesh Jhunjhunwala's analysis signal
 const RakeshJhunjhunwalaSignalSchema = z.object({
@@ -173,12 +200,12 @@ export async function rakeshJhunjhunwalaAgent(
 
 /**
  * Analyze the company's growth story
- * @param {Array} financialLineItems - Financial data
+ * @param {Array|Object} financialLineItems - Financial data
  * @param {Object} metrics - Financial metrics
  * @returns {Object} - Analysis results
  */
 function analyzeGrowthStory(financialLineItems, metrics) {
-  if (!financialLineItems || financialLineItems.length < 2) {
+  if (!financialLineItems) {
     return { score: 5, details: "Insufficient data for growth story analysis" };
   }
 
@@ -186,9 +213,7 @@ function analyzeGrowthStory(financialLineItems, metrics) {
   let rawScore = 5; // Start at neutral
 
   // 1) Revenue Growth - Jhunjhunwala valued strong topline growth
-  const revenues = financialLineItems
-    .filter((fi) => fi.revenue !== null && fi.revenue !== undefined)
-    .map((fi) => fi.revenue);
+  const revenues = extractLineItemValues(financialLineItems, "revenue");
 
   if (revenues.length >= 3) {
     // Calculate multi-year CAGR
@@ -220,9 +245,7 @@ function analyzeGrowthStory(financialLineItems, metrics) {
   }
 
   // 2) Earnings Growth - Jhunjhunwala wanted to see earnings increase alongside revenue
-  const netIncomes = financialLineItems
-    .filter((fi) => fi.net_income !== null && fi.net_income !== undefined)
-    .map((fi) => fi.net_income);
+  const netIncomes = extractLineItemValues(financialLineItems, "net_income");
 
   if (
     netIncomes.length >= 3 &&
@@ -379,13 +402,13 @@ function analyzeSectorDynamics(sectorData, economicData) {
 
 /**
  * Analyze competitive position
- * @param {Array} financialLineItems - Financial data
+ * @param {Array|Object} financialLineItems - Financial data
  * @param {Object} metrics - Financial metrics
  * @param {number} marketCap - Market capitalization
  * @returns {Object} - Analysis results
  */
 function analyzeCompetitivePosition(financialLineItems, metrics, marketCap) {
-  if (!financialLineItems || financialLineItems.length === 0) {
+  if (!financialLineItems) {
     return {
       score: 5,
       details: "Insufficient data for competitive position analysis",
@@ -396,11 +419,7 @@ function analyzeCompetitivePosition(financialLineItems, metrics, marketCap) {
   let rawScore = 5; // Start at neutral
 
   // 1) Margin Analysis - Jhunjhunwala liked companies with strong margins
-  const margins = financialLineItems
-    .filter(
-      (fi) => fi.operating_margin !== null && fi.operating_margin !== undefined
-    )
-    .map((fi) => fi.operating_margin);
+  const margins = extractLineItemValues(financialLineItems, "operating_margin");
 
   if (margins.length > 0) {
     const latestMargin = margins[0];
@@ -465,11 +484,10 @@ function analyzeCompetitivePosition(financialLineItems, metrics, marketCap) {
   }
 
   // 2) Return on Equity - Jhunjhunwala focused on capital efficiency
-  const roeValues = financialLineItems
-    .filter(
-      (fi) => fi.return_on_equity !== null && fi.return_on_equity !== undefined
-    )
-    .map((fi) => fi.return_on_equity);
+  const roeValues = extractLineItemValues(
+    financialLineItems,
+    "return_on_equity"
+  );
 
   if (roeValues.length > 0) {
     const latestRoe = roeValues[0];
@@ -501,11 +519,11 @@ function analyzeCompetitivePosition(financialLineItems, metrics, marketCap) {
 
 /**
  * Analyze financial strength
- * @param {Array} financialLineItems - Financial data
+ * @param {Array|Object} financialLineItems - Financial data
  * @returns {Object} - Analysis results
  */
 function analyzeFinancialStrength(financialLineItems) {
-  if (!financialLineItems || financialLineItems.length === 0) {
+  if (!financialLineItems) {
     return {
       score: 5,
       details: "Insufficient data for financial strength analysis",
@@ -516,16 +534,11 @@ function analyzeFinancialStrength(financialLineItems) {
   let rawScore = 5; // Start at neutral
 
   // 1) Debt Position - Jhunjhunwala was cautious about excessive debt
-  const debtValues = financialLineItems
-    .filter((fi) => fi.total_debt !== null && fi.total_debt !== undefined)
-    .map((fi) => fi.total_debt);
-
-  const equityValues = financialLineItems
-    .filter(
-      (fi) =>
-        fi.shareholders_equity !== null && fi.shareholders_equity !== undefined
-    )
-    .map((fi) => fi.shareholders_equity);
+  const debtValues = extractLineItemValues(financialLineItems, "total_debt");
+  const equityValues = extractLineItemValues(
+    financialLineItems,
+    "shareholders_equity"
+  );
 
   if (debtValues.length > 0 && equityValues.length > 0 && equityValues[0] > 0) {
     const debtToEquity = debtValues[0] / equityValues[0];
@@ -551,9 +564,7 @@ function analyzeFinancialStrength(financialLineItems) {
   }
 
   // 2) Profitability Consistency - Jhunjhunwala liked consistent profitability
-  const incomeValues = financialLineItems
-    .filter((fi) => fi.net_income !== null && fi.net_income !== undefined)
-    .map((fi) => fi.net_income);
+  const incomeValues = extractLineItemValues(financialLineItems, "net_income");
 
   if (incomeValues.length >= 3) {
     const profitableYears = incomeValues.filter((income) => income > 0).length;
@@ -639,6 +650,16 @@ Respond ONLY with a JSON object in this format:
 `;
 
   try {
+    // If mock data is being used, return a realistic response without calling LLM
+    if (state.metadata?.mock) {
+      return {
+        signal: "neutral",
+        confidence: 50,
+        reasoning: `Based on Rakesh Jhunjhunwala's principles, ${ticker} appears to have decent growth potential with moderate sector tailwinds.`,
+      };
+    }
+
+    // Only proceed to LLM call if not in mock mode
     const result = await callLLM(prompt, {
       model: state.metadata?.llm_model || "gpt-4",
       temperature: 0.1,
@@ -647,13 +668,22 @@ Respond ONLY with a JSON object in this format:
     });
 
     // Parse LLM response to get valid JSON
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No valid JSON found in LLM response");
-    }
+    let responseData;
 
-    const jsonStr = jsonMatch[0];
-    const responseData = JSON.parse(jsonStr);
+    if (typeof result === "object") {
+      // If result is already an object, use it directly
+      responseData = result;
+    } else if (typeof result === "string") {
+      // If result is a string, try to extract JSON
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON found in LLM response");
+      }
+      const jsonStr = jsonMatch[0];
+      responseData = JSON.parse(jsonStr);
+    } else {
+      throw new Error(`Unexpected result type: ${typeof result}`);
+    }
 
     // Validate with Zod schema
     return RakeshJhunjhunwalaSignalSchema.parse(responseData);

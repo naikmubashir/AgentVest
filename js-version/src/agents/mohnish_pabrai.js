@@ -6,8 +6,35 @@ import {
   searchLineItems,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
+
+/**
+ * Helper function to extract line item values, handling both array and object formats
+ * @param {Array|Object} financialLineItems - Financial line items in array or object format
+ * @param {string} lineItemName - The name of the line item to extract
+ * @returns {Array} - Array of values for the specified line item
+ */
+function extractLineItemValues(financialLineItems, lineItemName) {
+  if (!financialLineItems) {
+    return [];
+  }
+
+  // Handle array format
+  if (Array.isArray(financialLineItems)) {
+    return financialLineItems
+      .filter((item) => item.line_item === lineItemName)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map((item) => item.value);
+  }
+  // Handle object format
+  else if (typeof financialLineItems === "object") {
+    const item = financialLineItems[lineItemName];
+    return item && item.value !== undefined ? [item.value] : [];
+  }
+
+  return [];
+}
 
 // Define the schema for Mohnish Pabrai's analysis signal
 const MohnishPabraiSignalSchema = z.object({
@@ -184,12 +211,10 @@ function analyzeMarginOfSafety(financialLineItems, marketCap) {
   let rawScore = 0;
 
   // 1) Price to Book Value - Pabrai loves bargains
-  const tangibleBookValues = financialLineItems
-    .filter(
-      (fi) =>
-        fi.tangible_book_value !== null && fi.tangible_book_value !== undefined
-    )
-    .map((fi) => fi.tangible_book_value);
+  const tangibleBookValues = extractLineItemValues(
+    financialLineItems,
+    "tangible_book_value"
+  );
 
   if (tangibleBookValues.length > 0 && tangibleBookValues[0] > 0) {
     const priceToBookRatio = marketCap / tangibleBookValues[0];
@@ -215,9 +240,7 @@ function analyzeMarginOfSafety(financialLineItems, marketCap) {
   }
 
   // 2) P/E Ratio - Pabrai likes low P/E ratios
-  const netIncomes = financialLineItems
-    .filter((fi) => fi.net_income !== null && fi.net_income !== undefined)
-    .map((fi) => fi.net_income);
+  const netIncomes = extractLineItemValues(financialLineItems, "net_income");
 
   if (netIncomes.length > 0 && netIncomes[0] > 0) {
     const pe = marketCap / netIncomes[0];
@@ -241,16 +264,11 @@ function analyzeMarginOfSafety(financialLineItems, marketCap) {
   }
 
   // 3) Asset-based valuation - Pabrai often looks at assets minus liabilities
-  const totalAssets = financialLineItems
-    .filter((fi) => fi.total_assets !== null && fi.total_assets !== undefined)
-    .map((fi) => fi.total_assets);
-
-  const totalLiabilities = financialLineItems
-    .filter(
-      (fi) =>
-        fi.total_liabilities !== null && fi.total_liabilities !== undefined
-    )
-    .map((fi) => fi.total_liabilities);
+  const totalAssets = extractLineItemValues(financialLineItems, "total_assets");
+  const totalLiabilities = extractLineItemValues(
+    financialLineItems,
+    "total_liabilities"
+  );
 
   if (totalAssets.length > 0 && totalLiabilities.length > 0) {
     const netAssets = totalAssets[0] - totalLiabilities[0];
@@ -291,7 +309,10 @@ function analyzeMarginOfSafety(financialLineItems, marketCap) {
  * @returns {Object} - Analysis results
  */
 function analyzeBusinessSimplicity(metrics, financialLineItems) {
-  if (!metrics && (!financialLineItems || financialLineItems.length === 0)) {
+  if (
+    !metrics &&
+    (!financialLineItems || typeof financialLineItems !== "object")
+  ) {
     return {
       score: 5,
       details: "Insufficient data for business simplicity analysis",
@@ -302,13 +323,8 @@ function analyzeBusinessSimplicity(metrics, financialLineItems) {
   let rawScore = 5; // Start at neutral
 
   // 1) Business model consistency (revenue and earnings stability)
-  const revenues = financialLineItems
-    .filter((fi) => fi.revenue !== null && fi.revenue !== undefined)
-    .map((fi) => fi.revenue);
-
-  const netIncomes = financialLineItems
-    .filter((fi) => fi.net_income !== null && fi.net_income !== undefined)
-    .map((fi) => fi.net_income);
+  const revenues = extractLineItemValues(financialLineItems, "revenue");
+  const netIncomes = extractLineItemValues(financialLineItems, "net_income");
 
   if (revenues.length >= 3) {
     // Calculate volatility in revenue
@@ -375,14 +391,21 @@ function analyzeBusinessSimplicity(metrics, financialLineItems) {
   }
 
   // 2) Margin consistency - Pabrai likes stable margins that are easy to understand
-  const operatingMargins = financialLineItems
-    .filter(
-      (fi) =>
-        fi.operating_income !== null &&
-        fi.operating_income !== undefined &&
-        fi.revenue > 0
-    )
-    .map((fi) => fi.operating_income / fi.revenue);
+  const operatingIncomes = extractLineItemValues(
+    financialLineItems,
+    "operating_income"
+  );
+  let operatingMargins = [];
+
+  if (
+    operatingIncomes.length > 0 &&
+    revenues.length > 0 &&
+    operatingIncomes.length === revenues.length
+  ) {
+    operatingMargins = operatingIncomes
+      .map((income, i) => (revenues[i] > 0 ? income / revenues[i] : 0))
+      .filter((margin) => margin > 0);
+  }
 
   if (operatingMargins.length >= 3) {
     const avgMargin =
@@ -434,11 +457,10 @@ function analyzeUpsidePotential(financialLineItems, marketCap) {
   let rawScore = 5; // Start at neutral
 
   // 1) Return on Equity - Pabrai likes businesses that can compound capital
-  const roeValues = financialLineItems
-    .filter(
-      (fi) => fi.return_on_equity !== null && fi.return_on_equity !== undefined
-    )
-    .map((fi) => fi.return_on_equity);
+  const roeValues = extractLineItemValues(
+    financialLineItems,
+    "return_on_equity"
+  );
 
   if (roeValues.length > 0) {
     const averageRoe =
@@ -470,9 +492,7 @@ function analyzeUpsidePotential(financialLineItems, marketCap) {
   }
 
   // 2) Earnings Growth Potential
-  const netIncomes = financialLineItems
-    .filter((fi) => fi.net_income !== null && fi.net_income !== undefined)
-    .map((fi) => fi.net_income);
+  const netIncomes = extractLineItemValues(financialLineItems, "net_income");
 
   if (netIncomes.length >= 3) {
     const latestIncome = netIncomes[0];
@@ -514,7 +534,7 @@ function analyzeUpsidePotential(financialLineItems, marketCap) {
  * @returns {Object} - Analysis results
  */
 function analyzeFinancialHealth(financialLineItems) {
-  if (!financialLineItems || financialLineItems.length === 0) {
+  if (!financialLineItems || typeof financialLineItems !== "object") {
     return {
       score: 5,
       details: "Insufficient data for financial health analysis",
@@ -525,16 +545,11 @@ function analyzeFinancialHealth(financialLineItems) {
   let rawScore = 5; // Start at neutral
 
   // 1) Debt to Equity - Pabrai avoids excessive debt
-  const debtValues = financialLineItems
-    .filter((fi) => fi.total_debt !== null && fi.total_debt !== undefined)
-    .map((fi) => fi.total_debt);
-
-  const equityValues = financialLineItems
-    .filter(
-      (fi) =>
-        fi.shareholders_equity !== null && fi.shareholders_equity !== undefined
-    )
-    .map((fi) => fi.shareholders_equity);
+  const debtValues = extractLineItemValues(financialLineItems, "total_debt");
+  const equityValues = extractLineItemValues(
+    financialLineItems,
+    "shareholders_equity"
+  );
 
   if (
     debtValues.length > 0 &&
@@ -569,13 +584,10 @@ function analyzeFinancialHealth(financialLineItems) {
   }
 
   // 2) Cash position - Pabrai likes companies with adequate cash reserves
-  const cashValues = financialLineItems
-    .filter(
-      (fi) =>
-        fi.cash_and_equivalents !== null &&
-        fi.cash_and_equivalents !== undefined
-    )
-    .map((fi) => fi.cash_and_equivalents);
+  const cashValues = extractLineItemValues(
+    financialLineItems,
+    "cash_and_equivalents"
+  );
 
   if (cashValues.length > 0 && debtValues.length > 0) {
     const cashToDebt = debtValues[0] > 0 ? cashValues[0] / debtValues[0] : 999;
@@ -653,7 +665,17 @@ Respond ONLY with a JSON object in this format:
 `;
 
   try {
-    const result = await callLLM(prompt, {
+    // If mock data is being used, return a realistic response without calling LLM
+    if (state.metadata?.mock) {
+      return {
+        signal: "neutral",
+        confidence: 50,
+        reasoning: `Based on Mohnish Pabrai's principles, ${ticker} appears to offer a moderate margin of safety with reasonable upside potential.`,
+      };
+    }
+
+    // Only proceed to LLM call if not in mock mode
+    const result = await callLLM(prompt, null, agentId, state, {
       model: state.metadata?.llm_model || "gpt-4",
       temperature: 0.1,
       max_tokens: 800,
@@ -661,13 +683,22 @@ Respond ONLY with a JSON object in this format:
     });
 
     // Parse LLM response to get valid JSON
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No valid JSON found in LLM response");
-    }
+    let responseData;
 
-    const jsonStr = jsonMatch[0];
-    const responseData = JSON.parse(jsonStr);
+    if (typeof result === "object") {
+      // If result is already an object, use it directly
+      responseData = result;
+    } else if (typeof result === "string") {
+      // If result is a string, try to extract JSON
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON found in LLM response");
+      }
+      const jsonStr = jsonMatch[0];
+      responseData = JSON.parse(jsonStr);
+    } else {
+      throw new Error(`Unexpected result type: ${typeof result}`);
+    }
 
     // Validate with Zod schema
     return MohnishPabraiSignalSchema.parse(responseData);
@@ -683,7 +714,7 @@ Respond ONLY with a JSON object in this format:
       } indicators with key factors including: ${
         analysis.safetyAnalysis.details.split(";")[0]
       }; ${analysis.simplicityAnalysis.details.split(";")[0]}; ${
-        analysis.financialHealth.details?.split(";")[0] ||
+        analysis.healthAnalysis.details?.split(";")[0] ||
         "moderate financial health"
       }.`,
     };

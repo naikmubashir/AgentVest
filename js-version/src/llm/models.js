@@ -1,5 +1,5 @@
-import { ChatOpenAI } from "langchain/chat_models/openai";
-import { OllamaChat } from "langchain/chat_models/ollama";
+import { ChatOpenAI } from "@langchain/openai";
+import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -102,7 +102,7 @@ export function getModel(modelName, provider, apiKeys = null) {
   } else if (provider === ModelProvider.OLLAMA) {
     const ollamaBaseUrl = process.env.OLLAMA_URL || "http://localhost:11434";
 
-    return new OllamaChat({
+    return new ChatOllama({
       baseUrl: ollamaBaseUrl,
       model: modelName,
       temperature: 0,

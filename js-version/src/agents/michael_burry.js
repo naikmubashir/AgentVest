@@ -8,7 +8,7 @@ import {
   getTechnicalIndicators,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 
 // Define the schema for Michael Burry's analysis signal
@@ -172,7 +172,7 @@ export async function michaelBurryAgent(
   }
 
   // Show reasoning if requested
-  if (state.metadata.show_reasoning) {
+  if (state.metadata && state.metadata.show_reasoning) {
     showAgentReasoning(burryAnalysis, "Michael Burry Agent");
   }
 
@@ -213,19 +213,35 @@ function analyzeFundamentals(metrics, financialLineItems, marketCap) {
 
   // Helper to find the most recent value for a line item
   const findMostRecent = (lineItemName) => {
-    const items = financialLineItems
-      .filter((item) => item.line_item === lineItemName)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Handle both array and object formats
+    if (Array.isArray(financialLineItems)) {
+      const items = financialLineItems
+        .filter((item) => item.line_item === lineItemName)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    return items.length > 0 ? items[0].value : null;
+      return items.length > 0 ? items[0].value : null;
+    } else if (financialLineItems && typeof financialLineItems === "object") {
+      // If it's an object, directly access the property
+      const lineItem = financialLineItems[lineItemName];
+      return lineItem ? lineItem.value : null;
+    }
+    return null;
   };
 
   // Helper to get historical values for a line item
   const getHistorical = (lineItemName) => {
-    return financialLineItems
-      .filter((item) => item.line_item === lineItemName)
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .map((item) => item.value);
+    // Handle both array and object formats
+    if (Array.isArray(financialLineItems)) {
+      return financialLineItems
+        .filter((item) => item.line_item === lineItemName)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .map((item) => item.value);
+    } else if (financialLineItems && typeof financialLineItems === "object") {
+      // If it's an object, return the value in an array
+      const lineItem = financialLineItems[lineItemName];
+      return lineItem ? [lineItem.value] : [];
+    }
+    return [];
   };
 
   // 1. Debt Analysis - Burry often focuses on excessive debt
@@ -696,8 +712,14 @@ async function generateBurryOutput(ticker, analysisData, state, agentId) {
   const llmResponse = await callLLM(state, prompt);
 
   try {
-    // Parse the response and validate with Zod schema
-    const jsonResponse = JSON.parse(llmResponse);
+    // Handle both string and object responses
+    let jsonResponse;
+    if (typeof llmResponse === "string") {
+      jsonResponse = JSON.parse(llmResponse);
+    } else {
+      jsonResponse = llmResponse;
+    }
+
     return MichaelBurrySignalSchema.parse(jsonResponse);
   } catch (error) {
     console.error("Error parsing Michael Burry LLM response:", error);

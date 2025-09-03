@@ -2,7 +2,7 @@
  * Fundamentals Analyst Agent
  * Analyzes fundamental data and generates trading signals for multiple tickers.
  */
-import { HumanMessage } from "langchain/schema";
+import { HumanMessage } from "@langchain/core/messages";
 import { showAgentReasoning } from "../graph/state.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 import { progress } from "../utils/progress.js";
@@ -15,7 +15,7 @@ import { getFinancialMetrics } from "../tools/api.js";
  * @param {string} agentId - The agent ID
  * @returns {Object} Updated state with fundamental analysis
  */
-export function fundamentalsAnalystAgent(
+export async function fundamentalsAnalystAgent(
   state,
   agentId = "fundamentals_analyst_agent"
 ) {
@@ -31,13 +31,18 @@ export function fundamentalsAnalystAgent(
     progress.updateStatus(agentId, ticker, "Fetching financial metrics");
 
     // Get the financial metrics
-    const financialMetrics = getFinancialMetrics(
+    console.log(
+      `Calling getFinancialMetrics for ${ticker} with endDate=${endDate}, period=ttm, limit=10, apiKey=${apiKey}`
+    );
+    const financialMetrics = await getFinancialMetrics(
       ticker,
       endDate,
       "ttm",
       10,
       apiKey
     );
+
+    console.log(`financialMetrics result:`, financialMetrics);
 
     if (!financialMetrics || financialMetrics.length === 0) {
       progress.updateStatus(
@@ -50,6 +55,8 @@ export function fundamentalsAnalystAgent(
 
     // Pull the most recent financial metrics
     const metrics = financialMetrics[0];
+
+    console.log("Financial metrics for fundamentals analysis:", metrics);
 
     // Initialize signals list for different fundamental aspects
     const signals = [];

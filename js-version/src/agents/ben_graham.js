@@ -6,7 +6,7 @@ import {
   searchLineItems,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 
 // Define the schema for Ben Graham's analysis signal
@@ -133,7 +133,7 @@ export async function benGrahamAgent(state, agentId = "ben_graham_agent") {
   }
 
   // Show reasoning if requested
-  if (state.metadata.show_reasoning) {
+  if (state?.metadata?.request?.showReasoning) {
     showAgentReasoning(grahamAnalysis, "Ben Graham Agent");
   }
 
@@ -162,11 +162,27 @@ function checkGrahamCriteria(ticker, metrics, financialLineItems, marketCap) {
 
   // Helper to find the most recent value for a line item
   const findMostRecent = (lineItemName) => {
-    const items = financialLineItems
-      .filter((item) => item.line_item === lineItemName)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Check if financialLineItems is an object with line item keys
+    if (
+      financialLineItems[lineItemName] &&
+      Array.isArray(financialLineItems[lineItemName])
+    ) {
+      // Object format: { lineItemName: [{date, value}, ...] }
+      const items = financialLineItems[lineItemName].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
 
-    return items.length > 0 ? items[0].value : null;
+      return items.length > 0 ? items[0].value : null;
+    } else if (Array.isArray(financialLineItems)) {
+      // Array format: [{line_item, date, value}, ...]
+      const items = financialLineItems
+        .filter((item) => item.line_item === lineItemName)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      return items.length > 0 ? items[0].value : null;
+    }
+
+    return null; // Return null if no matching data found
   };
 
   // 1. Adequate Size - not too small to ensure stability
@@ -203,9 +219,23 @@ function checkGrahamCriteria(ticker, metrics, financialLineItems, marketCap) {
   });
 
   // 3. Earnings Stability - Positive earnings for at least 5 years
-  const earnings = financialLineItems
-    .filter((item) => item.line_item === "net_income")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  let earnings = [];
+
+  // Handle both object and array formats
+  if (
+    financialLineItems["net_income"] &&
+    Array.isArray(financialLineItems["net_income"])
+  ) {
+    // Object format
+    earnings = financialLineItems["net_income"].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+  } else if (Array.isArray(financialLineItems)) {
+    // Array format
+    earnings = financialLineItems
+      .filter((item) => item.line_item === "net_income")
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
 
   const earningsStability = earnings.every((item) => item.value > 0);
   const earningsYears = earnings.length;
@@ -221,9 +251,23 @@ function checkGrahamCriteria(ticker, metrics, financialLineItems, marketCap) {
 
   // 4. Dividend Record - Uninterrupted dividends for at least 20 years
   // This is a strict criterion, so we'll adapt it to be more practical
-  const dividends = financialLineItems
-    .filter((item) => item.line_item === "dividends_per_share")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  let dividends = [];
+
+  // Handle both object and array formats
+  if (
+    financialLineItems["dividends_per_share"] &&
+    Array.isArray(financialLineItems["dividends_per_share"])
+  ) {
+    // Object format
+    dividends = financialLineItems["dividends_per_share"].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+  } else if (Array.isArray(financialLineItems)) {
+    // Array format
+    dividends = financialLineItems
+      .filter((item) => item.line_item === "dividends_per_share")
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
 
   const hasDividends =
     dividends.length > 0 && dividends.every((item) => item.value > 0);
@@ -239,9 +283,23 @@ function checkGrahamCriteria(ticker, metrics, financialLineItems, marketCap) {
 
   // 5. Earnings Growth - Minimum 33% increase in EPS over past 10 years
   // Adapting to available data (which may be less than 10 years)
-  const eps = financialLineItems
-    .filter((item) => item.line_item === "earnings_per_share")
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  let eps = [];
+
+  // Handle both object and array formats
+  if (
+    financialLineItems["earnings_per_share"] &&
+    Array.isArray(financialLineItems["earnings_per_share"])
+  ) {
+    // Object format
+    eps = financialLineItems["earnings_per_share"].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+  } else if (Array.isArray(financialLineItems)) {
+    // Array format
+    eps = financialLineItems
+      .filter((item) => item.line_item === "earnings_per_share")
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
 
   let earningsGrowth = false;
   let earningsGrowthDetails = "Insufficient EPS history";
@@ -338,6 +396,7 @@ function checkGrahamCriteria(ticker, metrics, financialLineItems, marketCap) {
 
   // 9. Debt to Asset Ratio - Long-term debt should not exceed working capital
   const totalDebt = findMostRecent("total_debt");
+  const totalAssets = findMostRecent("total_assets");
   const workingCapital =
     currentAssets !== null && currentLiabilities !== null
       ? currentAssets - currentLiabilities
@@ -453,11 +512,13 @@ async function generateGrahamOutput(ticker, analysisData, state, agentId) {
   `;
 
   progress.updateStatus(agentId, ticker, "Generating LLM analysis");
-  const llmResponse = await callLLM(state, prompt);
+  const llmResponse = await callLLM(prompt, null, "ben_graham_agent", state);
 
   try {
     // Parse the response and validate with Zod schema
-    const jsonResponse = JSON.parse(llmResponse);
+    // If the response is already an object, use it directly
+    const jsonResponse =
+      typeof llmResponse === "string" ? JSON.parse(llmResponse) : llmResponse;
     return BenGrahamSignalSchema.parse(jsonResponse);
   } catch (error) {
     console.error("Error parsing Ben Graham LLM response:", error);

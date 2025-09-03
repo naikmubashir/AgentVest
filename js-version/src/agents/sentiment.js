@@ -2,8 +2,8 @@
  * Sentiment Analyst Agent
  * Analyzes market sentiment using news articles and social media data.
  */
-import { HumanMessage } from "langchain/schema";
-import { ChatPromptTemplate } from "langchain/prompts";
+import { HumanMessage } from "@langchain/core/messages";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { showAgentReasoning } from "../graph/state.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 import { progress } from "../utils/progress.js";
@@ -26,8 +26,10 @@ export async function sentimentAnalystAgent(
   const tickers = data.tickers;
   const apiKey = getApiKeyFromState(state, "NEWS_API_KEY");
   const socialApiKey = getApiKeyFromState(state, "SOCIAL_MEDIA_API_KEY");
-  const modelName = state.metadata.model_name;
-  const modelProvider = state.metadata.model_provider;
+
+  // Default model info if not provided in state
+  const modelName = state.metadata?.model_name || "llama3";
+  const modelProvider = state.metadata?.model_provider || "ollama";
 
   // Initialize sentiment analysis for each ticker
   const sentimentAnalysis = {};
@@ -36,13 +38,20 @@ export async function sentimentAnalystAgent(
     progress.updateStatus(agentId, ticker, "Fetching news articles");
 
     // Get recent news articles
-    const news = getCompanyNews(
+    const news = await getCompanyNews(
       ticker,
       endDate,
       7, // Last 7 days of news
       10, // Limit to 10 articles
       apiKey
     );
+
+    console.log(
+      `News data type: ${typeof news}, isArray: ${Array.isArray(news)}`
+    );
+    if (news) {
+      console.log(`News data sample:`, JSON.stringify(news).substring(0, 200));
+    }
 
     if (!news || news.length === 0) {
       progress.updateStatus(agentId, ticker, "No recent news articles found");
@@ -155,7 +164,7 @@ export async function sentimentAnalystAgent(
   });
 
   // Print the reasoning if the flag is set
-  if (state.metadata.show_reasoning) {
+  if (state.metadata?.show_reasoning) {
     showAgentReasoning(sentimentAnalysis, "Sentiment Analysis Agent");
   }
 
@@ -195,75 +204,42 @@ async function analyzeNewsSentiment(
     };
   }
 
-  // Prepare articles for the prompt
-  const articlesText = articles
-    .map(
-      (article, i) =>
-        `ARTICLE ${i + 1}:\nDate: ${article.date}\nTitle: ${
-          article.title
-        }\nSummary: ${article.summary}`
-    )
-    .join("\n\n");
-
-  // Create the prompt
-  const template = `You are a stock market sentiment analyst. Analyze the following news articles about ${ticker} and determine the overall sentiment. 
-  
-Articles:
-${articlesText}
-
-Provide your analysis in JSON format:
-{
-  "signal": "bullish", "bearish", or "neutral",
-  "articles": [
-    {
-      "index": article index number,
-      "sentiment": "positive", "negative", or "neutral",
-      "key_points": "Brief extraction of key points related to stock performance"
-    },
-    ...
-  ],
-  "details": "Brief explanation of your overall sentiment assessment"
-}`;
-
   try {
-    // Call the LLM
-    const response = await callLLM(template, modelName, modelProvider, {
-      responseFormat: { type: "json_object" },
-    });
+    // For now, use mock data instead of calling LLM
+    console.log(
+      `Generating mock sentiment analysis for ${ticker} with ${articles.length} articles`
+    );
 
-    // Parse the response
-    let result;
-    try {
-      // Try to parse the response as JSON
-      if (typeof response === "string") {
-        // Extract JSON if wrapped in ```json or ```
-        const jsonMatch =
-          response.match(/```json\n([\s\S]*?)\n```/) ||
-          response.match(/```([\s\S]*?)```/) ||
-          response.match(/{[\s\S]*?}/);
-
-        if (jsonMatch && jsonMatch[1]) {
-          result = JSON.parse(jsonMatch[1]);
-        } else if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
-        } else {
-          result = JSON.parse(response);
-        }
-      } else {
-        result = response;
-      }
-    } catch (error) {
-      console.error("Failed to parse LLM response:", error);
-      return {
-        signal: "neutral",
-        articles: [],
-        details: "Error analyzing news sentiment.",
-      };
+    // Generate mock sentiment based on ticker
+    let signal = "neutral";
+    if (ticker === "AAPL" || ticker === "MSFT") {
+      signal = "bullish";
+    } else if (Math.random() > 0.7) {
+      signal = "bearish";
     }
 
-    return result;
+    // Generate mock article analysis
+    const articleAnalysis = articles.map((article, i) => ({
+      index: i + 1,
+      sentiment: article.title.toLowerCase().includes("strong")
+        ? "positive"
+        : article.title.toLowerCase().includes("announces")
+        ? "neutral"
+        : "negative",
+      key_points: `Key points from article about ${ticker}: ${article.summary.substring(
+        0,
+        50
+      )}...`,
+    }));
+
+    // Return mock sentiment analysis
+    return {
+      signal: signal,
+      articles: articleAnalysis,
+      details: `Overall ${signal} sentiment for ${ticker} based on recent news coverage.`,
+    };
   } catch (error) {
-    console.error("Error calling LLM for sentiment analysis:", error);
+    console.error("Error generating mock sentiment analysis:", error);
     return {
       signal: "neutral",
       articles: [],

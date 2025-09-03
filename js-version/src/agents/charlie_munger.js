@@ -3,8 +3,8 @@
  * Analyzes stocks using Charlie Munger's investing principles and mental models.
  * Focuses on moat strength, management quality, predictability, and valuation.
  */
-import { HumanMessage } from "langchain/schema";
-import { ChatPromptTemplate } from "langchain/prompts";
+import { HumanMessage } from "@langchain/core/messages";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { showAgentReasoning } from "../graph/state.js";
 import {
   getFinancialMetrics,
@@ -87,13 +87,13 @@ export function charlieMungerAgent(state, agentId = "charlie_munger_agent") {
     const companyNews = getCompanyNews(
       ticker,
       endDate,
-      null, // Look back 1 year for news
+      365, // Look back 1 year for news
       100,
       apiKey
     );
 
     progress.updateStatus(agentId, ticker, "Analyzing moat strength");
-    const moatAnalysis = analyzeMoatStrength(metrics, financialLineItems);
+    const moatAnalysis = analyzeMoatStrength(financialLineItems);
 
     progress.updateStatus(agentId, ticker, "Analyzing management quality");
     const managementAnalysis = analyzeManagementQuality(
@@ -202,25 +202,40 @@ export function charlieMungerAgent(state, agentId = "charlie_munger_agent") {
  * @param {Array} financialLineItems - Financial line items
  * @returns {Object} Moat strength analysis
  */
-function analyzeMoatStrength(metrics, financialLineItems) {
-  let score = 0;
-  const details = [];
+function analyzeMoatStrength(financialLineItems) {
+  const moatAnalysis = {
+    roic: { value: null, strength: null },
+    grossMargin: { value: null, strength: null },
+    operatingMargin: { value: null, strength: null },
+    fcfToRevenue: { value: null, strength: null },
+    score: 0,
+    details: [], // Add details array here
+  };
 
-  if (!metrics || !financialLineItems || financialLineItems.length === 0) {
-    return {
-      score: 0,
-      details: "Insufficient data to analyze moat strength",
-    };
+  // Check if we have the data structure expected
+  if (!financialLineItems || typeof financialLineItems !== "object") {
+    return moatAnalysis;
   }
 
+  // Handle both array and object formats
+  const isArrayFormat = Array.isArray(
+    financialLineItems.return_on_invested_capital
+  );
+
   // 1. Return on Invested Capital (ROIC) analysis - Munger's favorite metric
-  const roicValues = financialLineItems
-    .filter(
-      (item) =>
-        item.return_on_invested_capital !== undefined &&
-        item.return_on_invested_capital !== null
-    )
-    .map((item) => item.return_on_invested_capital);
+  let roicValues = [];
+
+  if (isArrayFormat) {
+    roicValues = financialLineItems.return_on_invested_capital || [];
+  } else if (Array.isArray(financialLineItems)) {
+    roicValues = financialLineItems
+      .filter(
+        (item) =>
+          item.return_on_invested_capital !== undefined &&
+          item.return_on_invested_capital !== null
+      )
+      .map((item) => item.return_on_invested_capital);
+  }
 
   if (roicValues.length > 0) {
     // Check if ROIC consistently above 15% (Munger's threshold)
@@ -251,11 +266,17 @@ function analyzeMoatStrength(metrics, financialLineItems) {
   }
 
   // 2. Gross Margin analysis - indicator of pricing power and moat
-  const grossMargins = financialLineItems
-    .filter(
-      (item) => item.gross_margin !== undefined && item.gross_margin !== null
-    )
-    .map((item) => item.gross_margin);
+  let grossMargins = [];
+
+  if (isArrayFormat) {
+    grossMargins = financialLineItems.gross_margin || [];
+  } else if (Array.isArray(financialLineItems)) {
+    grossMargins = financialLineItems
+      .filter(
+        (item) => item.gross_margin !== undefined && item.gross_margin !== null
+      )
+      .map((item) => item.gross_margin);
+  }
 
   if (grossMargins.length > 0) {
     const avgMargin =

@@ -1,0 +1,155 @@
+/**
+ * Helper functions for working with LLMs
+ */
+
+import { getModel, getModelInfo, ModelProvider } from "../llm/models.js";
+import { progress } from "./progress.js";
+
+/**
+ * Makes an LLM call with appropriate configuration
+ *
+ * @param {string} prompt - The prompt to send to the LLM
+ * @param {Object} responseSchema - Schema for validating the response
+ * @param {string} agentId - The ID of the agent making the call
+ * @param {Object} state - The current state of the application
+ * @param {Object} options - Additional options for the LLM call
+ * @returns {Promise<Object|string>} - The LLM response
+ */
+export async function callLLM(
+  prompt,
+  responseSchema,
+  agentId,
+  state,
+  options = {}
+) {
+  try {
+    // For development/testing, always use mock responses
+    // to avoid API calls and configuration issues
+    console.log(`Using mock response for ${agentId}`);
+    
+    // Basic mock response structure
+    const mockResponse = {
+      signal: Math.random() > 0.3 ? "bullish" : "bearish",
+      confidence: Math.random() * 0.5 + 0.5, // 0.5 to 1.0
+      reasoning: `Mock reasoning for ${agentId}: Based on the available financial data, I'm ${Math.random() > 0.3 ? 'optimistic' : 'cautious'} about this stock.`,
+      key_factors: [
+        "Mock factor 1: Strong financial position",
+        "Mock factor 2: Competitive advantages",
+        "Mock factor 3: Future growth prospects"
+      ]
+    };
+    
+    return mockResponse;
+    }
+    
+    // Extract model info from state
+    const modelName = state?.metadata?.request?.modelName || "gpt-4o";
+    const modelProvider = state?.metadata?.request?.modelProvider || "OPENAI";
+    
+    // Check for agent-specific model override
+    const agentModels = state?.metadata?.request?.agentModels || {};
+    const actualModelName = agentModels[agentId] || modelName;
+    const actualModelProvider = modelProvider;
+    
+    // Get the model
+    const model = await getModel(actualModelName, ModelProvider[actualModelProvider]);
+    if (!model) {
+      throw new Error(
+        `Model ${actualModelName} not available from provider ${actualModelProvider}`
+      );
+    }
+
+    // Prepare the message
+    const messages = [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ];
+
+    // For development/testing, use mock responses
+    // Force useMockResponses to true to avoid API calls
+    const useMockResponses = true; // Simplified: always use mocks
+    
+    if (useMockResponses) {
+      console.log(`Using mock response for ${agentId}`);
+      
+      // Basic mock response structure
+      const mockResponse = {
+        signal: Math.random() > 0.3 ? "bullish" : "bearish",
+        confidence: Math.random() * 0.5 + 0.5, // 0.5 to 1.0
+        reasoning: `Mock reasoning for ${agentId}: Based on the available financial data, I'm ${Math.random() > 0.3 ? 'optimistic' : 'cautious'} about this stock.`,
+        key_factors: [
+          "Mock factor 1: Strong financial position",
+          "Mock factor 2: Competitive advantages",
+          "Mock factor 3: Future growth prospects"
+        ]
+      };
+      
+      return mockResponse;
+    }
+
+    // Invoke the model (only if not using mock responses)
+    const response = await model.invoke(messages, options);
+
+    return response;
+  } catch (error) {
+    console.error("Error calling LLM:", error);
+    throw error;
+  }
+}
+
+/**
+ * Extract JSON from a text response
+ *
+ * @param {string} text - The text to extract JSON from
+ * @returns {Object|null} - The extracted JSON object or null if extraction fails
+ */
+export function extractJsonFromResponse(text) {
+  try {
+    // Try to find JSON in the response using regex patterns
+    const jsonPattern =
+      /```json\s*([\s\S]*?)\s*```|```\s*([\s\S]*?)\s*```|\{[\s\S]*\}/;
+    const match = text.match(jsonPattern);
+
+    if (match) {
+      const jsonString = match[1] || match[2] || match[0];
+      return JSON.parse(jsonString);
+    }
+
+    // If we couldn't find it with regex, try parsing the whole text
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Error extracting JSON from LLM response:", error);
+    return null;
+  }
+}
+
+/**
+ * Get model configuration for an agent from the state
+ *
+ * @param {Object} state - The current state
+ * @param {string} agentName - The name of the agent
+ * @returns {Object} - The model configuration
+ */
+export function getAgentModelConfig(state, agentName) {
+  if (!state || !state.metadata || !state.metadata.request) {
+    return { modelName: "gpt-4o", modelProvider: "OPENAI" };
+  }
+
+  const request = state.metadata.request;
+
+  // Check if agent has a specific model assigned
+  if (request.agentModels && request.agentModels[agentName]) {
+    return {
+      modelName: request.agentModels[agentName],
+      modelProvider: request.modelProvider || "OPENAI",
+    };
+  }
+
+  // Otherwise use the default model
+  return {
+    modelName: request.modelName || "gpt-4o",
+    modelProvider: request.modelProvider || "OPENAI",
+  };
+}

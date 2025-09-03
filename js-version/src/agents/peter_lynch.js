@@ -8,7 +8,7 @@ import {
   getCompanyNews,
 } from "../tools/api.js";
 import { callLLM } from "../utils/llm.js";
-import progress from "../utils/progress.js";
+import { progress } from "../utils/progress.js";
 import { getApiKeyFromState } from "../utils/api_key.js";
 
 // Define the schema for Peter Lynch's analysis signal
@@ -73,7 +73,7 @@ export async function peterLynchAgent(state, agentId = "peter_lynch_agent") {
     const insiderTrades = await getInsiderTrades(ticker, endDate, 50, apiKey);
 
     progress.updateStatus(agentId, ticker, "Fetching company news");
-    const companyNews = await getCompanyNews(ticker, endDate, 50, apiKey);
+    const companyNews = await getCompanyNews(ticker, endDate, 50, 20, apiKey);
 
     // Perform sub-analyses:
     progress.updateStatus(agentId, ticker, "Analyzing growth");
@@ -169,12 +169,39 @@ export async function peterLynchAgent(state, agentId = "peter_lynch_agent") {
 }
 
 /**
+ * Helper function to extract values from financial line items
+ * @param {Array|Object} financialLineItems - Financial data
+ * @param {string} lineItemName - Name of the line item to extract
+ * @returns {Array} - Array of values
+ */
+function extractLineItemValues(financialLineItems, lineItemName) {
+  if (!financialLineItems) {
+    return [];
+  }
+
+  // Handle array format
+  if (Array.isArray(financialLineItems)) {
+    return financialLineItems
+      .filter((item) => item.line_item === lineItemName)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .map((item) => item.value);
+  }
+  // Handle object format
+  else if (typeof financialLineItems === "object") {
+    const item = financialLineItems[lineItemName];
+    return item && item.value !== undefined ? [item.value] : [];
+  }
+
+  return [];
+}
+
+/**
  * Evaluate growth based on revenue and EPS trends
  * @param {Array} financialLineItems - Financial data
  * @returns {Object} - Analysis results
  */
 function analyzeLynchGrowth(financialLineItems) {
-  if (!financialLineItems || financialLineItems.length < 2) {
+  if (!financialLineItems) {
     return {
       score: 0,
       details: "Insufficient financial data for growth analysis",
@@ -185,9 +212,7 @@ function analyzeLynchGrowth(financialLineItems) {
   let rawScore = 0; // We'll sum up points, then scale to 0–10 eventually
 
   // 1) Revenue Growth
-  const revenues = financialLineItems
-    .filter((fi) => fi.revenue !== null && fi.revenue !== undefined)
-    .map((fi) => fi.revenue);
+  const revenues = extractLineItemValues(financialLineItems, "revenue");
 
   if (revenues.length >= 2) {
     const latestRev = revenues[0];
@@ -222,12 +247,10 @@ function analyzeLynchGrowth(financialLineItems) {
   }
 
   // 2) EPS Growth
-  const epsValues = financialLineItems
-    .filter(
-      (fi) =>
-        fi.earnings_per_share !== null && fi.earnings_per_share !== undefined
-    )
-    .map((fi) => fi.earnings_per_share);
+  const epsValues = extractLineItemValues(
+    financialLineItems,
+    "earnings_per_share"
+  );
 
   if (epsValues.length >= 2) {
     const latestEps = epsValues[0];
@@ -268,7 +291,7 @@ function analyzeLynchGrowth(financialLineItems) {
  * @returns {Object} - Analysis results
  */
 function analyzeLynchFundamentals(financialLineItems) {
-  if (!financialLineItems || financialLineItems.length === 0) {
+  if (!financialLineItems) {
     return { score: 0, details: "Insufficient fundamentals data" };
   }
 
@@ -276,22 +299,13 @@ function analyzeLynchFundamentals(financialLineItems) {
   let rawScore = 0; // We'll accumulate up to 6 points, then scale to 0–10
 
   // 1) Debt-to-Equity
-  const debtValues = financialLineItems
-    .filter((fi) => fi.total_debt !== null && fi.total_debt !== undefined)
-    .map((fi) => fi.total_debt);
+  const debtValues = extractLineItemValues(financialLineItems, "total_debt");
+  const eqValues = extractLineItemValues(
+    financialLineItems,
+    "shareholders_equity"
+  );
 
-  const eqValues = financialLineItems
-    .filter(
-      (fi) =>
-        fi.shareholders_equity !== null && fi.shareholders_equity !== undefined
-    )
-    .map((fi) => fi.shareholders_equity);
-
-  if (
-    debtValues.length > 0 &&
-    eqValues.length > 0 &&
-    debtValues.length === eqValues.length
-  ) {
+  if (debtValues.length > 0 && eqValues.length > 0) {
     const recentDebt = debtValues[0];
     const recentEquity = eqValues[0] || 1e-9;
     const deRatio = recentDebt / recentEquity;
@@ -310,11 +324,10 @@ function analyzeLynchFundamentals(financialLineItems) {
   }
 
   // 2) Operating Margin
-  const omValues = financialLineItems
-    .filter(
-      (fi) => fi.operating_margin !== null && fi.operating_margin !== undefined
-    )
-    .map((fi) => fi.operating_margin);
+  const omValues = extractLineItemValues(
+    financialLineItems,
+    "operating_margin"
+  );
 
   if (omValues.length > 0) {
     const omRecent = omValues[0];
@@ -335,11 +348,7 @@ function analyzeLynchFundamentals(financialLineItems) {
   }
 
   // 3) Positive Free Cash Flow
-  const fcfValues = financialLineItems
-    .filter(
-      (fi) => fi.free_cash_flow !== null && fi.free_cash_flow !== undefined
-    )
-    .map((fi) => fi.free_cash_flow);
+  const fcfValues = extractLineItemValues(financialLineItems, "free_cash_flow");
 
   if (fcfValues.length > 0) {
     if (fcfValues[0] > 0) {
@@ -372,20 +381,16 @@ function analyzeLynchValuation(financialLineItems, marketCap) {
   let rawScore = 0;
 
   // Get EPS data
-  const epsData = financialLineItems
-    .filter(
-      (fi) =>
-        fi.earnings_per_share !== null && fi.earnings_per_share !== undefined
-    )
-    .map((fi) => fi.earnings_per_share);
+  const epsData = extractLineItemValues(
+    financialLineItems,
+    "earnings_per_share"
+  );
 
   // Get outstanding shares
-  const sharesData = financialLineItems
-    .filter(
-      (fi) =>
-        fi.outstanding_shares !== null && fi.outstanding_shares !== undefined
-    )
-    .map((fi) => fi.outstanding_shares);
+  const sharesData = extractLineItemValues(
+    financialLineItems,
+    "outstanding_shares"
+  );
 
   // Calculate P/E ratio if possible
   if (
@@ -674,6 +679,16 @@ Respond ONLY with a JSON object in this format:
 `;
 
   try {
+    // If mock data is being used, return a realistic response without calling LLM
+    if (state.metadata?.mock) {
+      return {
+        signal: "neutral",
+        confidence: 50,
+        reasoning: `Based on Peter Lynch's principles, ${ticker} appears to be a reasonably valued company with moderate growth prospects.`,
+      };
+    }
+
+    // Only proceed to LLM call if not in mock mode
     const result = await callLLM(prompt, {
       model: state.metadata?.llm_model || "gpt-4",
       temperature: 0.1,
@@ -682,13 +697,22 @@ Respond ONLY with a JSON object in this format:
     });
 
     // Parse LLM response to get valid JSON
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No valid JSON found in LLM response");
-    }
+    let responseData;
 
-    const jsonStr = jsonMatch[0];
-    const responseData = JSON.parse(jsonStr);
+    if (typeof result === "object") {
+      // If result is already an object, use it directly
+      responseData = result;
+    } else if (typeof result === "string") {
+      // If result is a string, try to extract JSON
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No valid JSON found in LLM response");
+      }
+      const jsonStr = jsonMatch[0];
+      responseData = JSON.parse(jsonStr);
+    } else {
+      throw new Error(`Unexpected result type: ${typeof result}`);
+    }
 
     // Validate with Zod schema
     return PeterLynchSignalSchema.parse(responseData);

@@ -3,7 +3,9 @@
  */
 
 import { warrenBuffettAgent } from "../agents/warren_buffett.js";
-import { charlieMungerAgent } from "../agents/charlie_munger.js";
+// Use simplified Charlie Munger agent for testing
+// import { charlieMungerAgent } from "../agents/charlie_munger.js";
+import { charlieMungerAgent } from "../agents/charlie_munger_simple.js";
 import { fundamentalsAnalystAgent } from "../agents/fundamentals.js";
 import { technicalAnalystAgent } from "../agents/technicals.js";
 import { sentimentAnalystAgent } from "../agents/sentiment.js";
@@ -18,8 +20,8 @@ import { stanleyDruckenmillerAgent } from "../agents/stanley_druckenmiller.js";
 import { valuationAnalystAgent } from "../agents/valuation.js";
 import { rakeshJhunjhunwalaAgent } from "../agents/rakesh_jhunjhunwala.js";
 import { mohnishPabraiAgent } from "../agents/mohnish_pabrai.js";
-import { portfolioManagerAgent } from "../agents/portfolio_manager.js";
-import { riskManagerAgent } from "../agents/risk_manager.js";
+import { portfolioManagementAgent } from "../agents/portfolio_manager.js";
+import { riskManagementAgent } from "../agents/risk_manager.js";
 
 // Define analyst configuration - single source of truth
 export const ANALYST_CONFIG = {
@@ -172,7 +174,7 @@ export const ANALYST_CONFIG = {
     description: "Portfolio Optimization Specialist",
     investing_style:
       "Balances risk and return across the portfolio while implementing the analysts' recommendations.",
-    agent_func: portfolioManagerAgent,
+    agent_func: portfolioManagementAgent,
     type: "manager",
     order: 90,
   },
@@ -181,7 +183,7 @@ export const ANALYST_CONFIG = {
     description: "Risk Assessment Specialist",
     investing_style:
       "Evaluates potential risks and ensures the portfolio stays within risk tolerance guidelines.",
-    agent_func: riskManagerAgent,
+    agent_func: riskManagementAgent,
     type: "manager",
     order: 91,
   },

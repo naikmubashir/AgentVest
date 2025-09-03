@@ -323,7 +323,38 @@ export async function ensureOllamaAndModel(modelName) {
 
   // Check if the model is already downloaded
   const availableModels = await getLocallyAvailableModels();
-  if (!availableModels.includes(modelName)) {
+
+  // If modelName is undefined, use a default model
+  if (!modelName) {
+    console.log(chalk.yellow("No model specified, using default model"));
+    // Try to find a suitable default model
+    if (availableModels.length > 0) {
+      // Prefer llama3 models if available
+      const llamaModel = availableModels.find((m) => m.includes("llama3"));
+      if (llamaModel) {
+        modelName = llamaModel;
+        console.log(chalk.green(`Using ${modelName} as default model`));
+        return true;
+      }
+      // Otherwise use the first available model
+      modelName = availableModels[0];
+      console.log(chalk.green(`Using ${modelName} as default model`));
+      return true;
+    }
+    return false;
+  }
+
+  // Normalize modelName for comparison (removing version tags)
+  const normalizedModelName = modelName.split(":")[0];
+
+  // Check if any available model starts with the modelName (ignoring version tags)
+  const modelExists = availableModels.some(
+    (model) =>
+      model.startsWith(normalizedModelName + ":") ||
+      model === normalizedModelName
+  );
+
+  if (!modelExists) {
     console.log(chalk.yellow(`Model ${modelName} is not available locally.`));
 
     // Ask if they want to download it
