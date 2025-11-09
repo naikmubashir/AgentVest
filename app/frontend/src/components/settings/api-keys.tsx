@@ -15,11 +15,32 @@ interface ApiKey {
 
 const FINANCIAL_API_KEYS: ApiKey[] = [
   {
-    key: 'FINANCIAL_DATASETS_API_KEY',
-    label: 'Financial Datasets API',
-    description: 'For getting financial data to power the hedge fund',
-    url: 'https://financialdatasets.ai/',
-    placeholder: 'your-financial-datasets-api-key'
+    key: 'BINANCE_API_KEY',
+    label: 'Binance API Key',
+    description: 'For getting cryptocurrency price and market data (optional - public endpoints work without key)',
+    url: 'https://www.binance.com/en/my/settings/api-management',
+    placeholder: 'your-binance-api-key'
+  },
+  {
+    key: 'BINANCE_API_SECRET',
+    label: 'Binance API Secret',
+    description: 'Secret key for Binance API authentication',
+    url: 'https://www.binance.com/en/my/settings/api-management',
+    placeholder: 'your-binance-api-secret'
+  },
+  {
+    key: 'COINGECKO_API_KEY',
+    label: 'CoinGecko API',
+    description: 'For getting cryptocurrency market cap and additional data (optional)',
+    url: 'https://www.coingecko.com/en/api',
+    placeholder: 'your-coingecko-api-key'
+  },
+  {
+    key: 'CRYPTOPANIC_API_KEY',
+    label: 'CryptoPanic API',
+    description: 'For getting cryptocurrency news and sentiment data (optional)',
+    url: 'https://cryptopanic.com/developers/api/',
+    placeholder: 'your-cryptopanic-api-key'
   }
 ];
 
@@ -276,10 +297,10 @@ export function ApiKeysSettings() {
         </Card>
       )}
 
-      {/* Financial Data API Keys */}
+      {/* Cryptocurrency Data API Keys */}
       {renderApiKeySection(
-        'Financial Data',
-        'API keys for accessing financial market data and datasets.',
+        'Cryptocurrency Data',
+        'API keys for accessing cryptocurrency market data, prices, and news.',
         FINANCIAL_API_KEYS,
         <Key className="h-4 w-4" />
       )}
