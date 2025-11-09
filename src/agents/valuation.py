@@ -24,7 +24,7 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     valuation_analysis: dict[str, dict] = {}
 
     for ticker in tickers:
@@ -32,7 +32,7 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
 
         # --- Historical financial metrics ---
         financial_metrics = get_financial_metrics(
-            ticker=ticker,
+            symbol=ticker,
             end_date=end_date,
             period="ttm",
             limit=8,
@@ -46,7 +46,7 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
         # --- Enhanced line‑items ---
         progress.update_status(agent_id, ticker, "Gathering comprehensive line items")
         line_items = search_line_items(
-            ticker=ticker,
+            symbol=ticker,
             line_items=[
                 "free_cash_flow",
                 "net_income",
@@ -132,7 +132,7 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
         # ------------------------------------------------------------------
         # Aggregate & signal
         # ------------------------------------------------------------------
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
         if not market_cap:
             progress.update_status(agent_id, ticker, "Failed: Market cap unavailable")
             continue

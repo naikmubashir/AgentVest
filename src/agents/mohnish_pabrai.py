@@ -17,11 +17,24 @@ class MohnishPabraiSignal(BaseModel):
 
 
 def mohnish_pabrai_agent(state: AgentState, agent_id: str = "mohnish_pabrai_agent"):
-    """Evaluate stocks using Mohnish Pabrai's checklist and 'heads I win, tails I don't lose much' approach."""
+    """
+    Analyzes cryptocurrencies using Anthony Pompliano's (Pomp) Bitcoin maximalist principles.
+    
+    Focuses on:
+    - "Heads I win, tails I don't lose much" - Bitcoin as asymmetric bet
+    - Strong emphasis on Bitcoin as digital gold and store of value
+    - Sound money principles and monetary debasement hedge
+    - Downside protection through network security and adoption metrics
+    - Simple, clear investment thesis: Bitcoin > everything else
+    - Long-term holding with conviction through volatility
+    - Focus on accumulation during fear, distribution during euphoria
+    
+    Crypto-adapted version of value investing with Bitcoin maximalist lens.
+    """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
 
     analysis_data: dict[str, any] = {}
     pabrai_analysis: dict[str, any] = {}
@@ -30,7 +43,7 @@ def mohnish_pabrai_agent(state: AgentState, agent_id: str = "mohnish_pabrai_agen
     # and potential for doubling in 2-3 years at low risk.
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="annual", limit=8, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="annual", limit=8, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Gathering financial line items")
         line_items = search_line_items(
@@ -63,7 +76,7 @@ def mohnish_pabrai_agent(state: AgentState, agent_id: str = "mohnish_pabrai_agen
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Analyzing downside protection")
         downside = analyze_downside_protection(line_items)

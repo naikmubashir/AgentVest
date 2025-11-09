@@ -5,59 +5,140 @@ import pandas as pd
 import numpy as np
 import json
 from src.utils.api_key import get_api_key_from_state
-from src.tools.api import get_insider_trades, get_company_news
+from src.tools.api import get_company_news, get_prices, prices_to_df
 
 
-##### Sentiment Agent #####
+##### Crypto Sentiment Agent #####
 def sentiment_analyst_agent(state: AgentState, agent_id: str = "sentiment_analyst_agent"):
-    """Analyzes market sentiment and generates trading signals for multiple tickers."""
+    """
+    Analyzes cryptocurrency market sentiment and generates trading signals for multiple tickers.
+    
+    For crypto, sentiment is derived from:
+    1. Trading activity patterns (volume spikes, price volatility)
+    2. Market news and events (adapted from company news function)
+    3. Price momentum as sentiment proxy
+    
+    Note: Insider trading doesn't exist in crypto markets.
+    """
     data = state.get("data", {})
     end_date = data.get("end_date")
+    start_date = data.get("start_date")
     tickers = data.get("tickers")
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
+    
     # Initialize sentiment analysis for each ticker
     sentiment_analysis = {}
 
     for ticker in tickers:
-        progress.update_status(agent_id, ticker, "Fetching insider trades")
+        progress.update_status(agent_id, ticker, "Fetching price data for sentiment analysis")
 
-        # Get the insider trades
-        insider_trades = get_insider_trades(
-            ticker=ticker,
+        # Get price data for volume and volatility analysis
+        prices = get_prices(
+            symbol=ticker,
+            start_date=start_date,
             end_date=end_date,
-            limit=1000,
+            interval="1d",
             api_key=api_key,
         )
-
-        progress.update_status(agent_id, ticker, "Analyzing trading patterns")
-
-        # Get the signals from the insider trades
-        transaction_shares = pd.Series([t.transaction_shares for t in insider_trades]).dropna()
-        insider_signals = np.where(transaction_shares < 0, "bearish", "bullish").tolist()
-
-        progress.update_status(agent_id, ticker, "Fetching company news")
-
-        # Get the company news
-        company_news = get_company_news(ticker, end_date, limit=100, api_key=api_key)
-
-        # Get the sentiment from the company news
-        sentiment = pd.Series([n.sentiment for n in company_news]).dropna()
-        news_signals = np.where(sentiment == "negative", "bearish", 
-                              np.where(sentiment == "positive", "bullish", "neutral")).tolist()
         
-        progress.update_status(agent_id, ticker, "Combining signals")
-        # Combine signals from both sources with weights
-        insider_weight = 0.3
-        news_weight = 0.7
+        if not prices:
+            progress.update_status(agent_id, ticker, "Failed: No price data found")
+            continue
+            
+        prices_df = prices_to_df(prices)
+
+        progress.update_status(agent_id, ticker, "Analyzing trading activity sentiment")
+
+        # 1. Trading Activity Sentiment (replaces insider trading)
+        # Analyze volume patterns - increasing volume suggests growing interest
+        recent_volume = prices_df['volume'].tail(7).mean()
+        historical_volume = prices_df['volume'].head(-7).mean() if len(prices_df) > 14 else prices_df['volume'].mean()
+        volume_ratio = recent_volume / historical_volume if historical_volume > 0 else 1.0
+        
+        # Analyze price momentum
+        recent_returns = prices_df['close'].pct_change().tail(7).mean()
+        
+        # Volume + positive returns = bullish, volume + negative returns = bearish
+        trading_signals = []
+        if volume_ratio > 1.2:  # High volume
+            if recent_returns > 0:
+                trading_signals.extend(["bullish"] * 3)  # Strong bullish signal
+            else:
+                trading_signals.extend(["bearish"] * 3)  # Strong bearish signal (selling pressure)
+        elif volume_ratio > 1.0:  # Moderate volume increase
+            if recent_returns > 0:
+                trading_signals.append("bullish")
+            else:
+                trading_signals.append("bearish")
+        else:  # Low volume
+            trading_signals.append("neutral")  # Indecisive market
+
+        progress.update_status(agent_id, ticker, "Fetching crypto news")
+
+        # 2. Get crypto news/trade data (adapted from get_company_news)
+        company_news = get_company_news(symbol=ticker, end_date=end_date, limit=100, api_key=api_key)
+
+        # Note: get_company_news for crypto returns recent trades as news items
+        # We can use this as a proxy for market activity
+        news_signals = []
+        if company_news:
+            # Analyze the "news" (which is really trade data for crypto)
+            for news_item in company_news:
+                sentiment_word = news_item.title.split()[2]  # "SELL" or "BUY" from title
+                if "BUY" in sentiment_word:
+                    news_signals.append("bullish")
+                elif "SELL" in sentiment_word:
+                    news_signals.append("bearish")
+                else:
+                    news_signals.append("neutral")
+        else:
+            # If no news data, use price momentum as proxy
+            if recent_returns > 0.02:  # >2% positive return
+                news_signals.extend(["bullish"] * 2)
+            elif recent_returns < -0.02:  # >2% negative return
+                news_signals.extend(["bearish"] * 2)
+            else:
+                news_signals.append("neutral")
+        
+        progress.update_status(agent_id, ticker, "Analyzing volatility sentiment")
+        
+        # 3. Volatility Sentiment
+        # High volatility can be bullish (high interest) or bearish (panic)
+        # Context from price direction determines interpretation
+        daily_returns = prices_df['close'].pct_change().dropna()
+        volatility_7d = daily_returns.tail(7).std()
+        
+        volatility_signals = []
+        if volatility_7d > 0.05:  # High volatility (>5% daily)
+            if recent_returns > 0:
+                volatility_signals.append("bullish")  # Volatile rally
+            else:
+                volatility_signals.extend(["bearish"] * 2)  # Volatile selloff (more bearish)
+        elif volatility_7d < 0.02:  # Low volatility (<2% daily)
+            volatility_signals.append("neutral")  # Calm, consolidating
+        else:  # Moderate volatility
+            if recent_returns > 0:
+                volatility_signals.append("bullish")
+            else:
+                volatility_signals.append("neutral")
+        
+        progress.update_status(agent_id, ticker, "Combining sentiment signals")
+        
+        # Combine signals from all sources with weights
+        trading_weight = 0.4
+        news_weight = 0.3
+        volatility_weight = 0.3
         
         # Calculate weighted signal counts
         bullish_signals = (
-            insider_signals.count("bullish") * insider_weight +
-            news_signals.count("bullish") * news_weight
+            trading_signals.count("bullish") * trading_weight +
+            news_signals.count("bullish") * news_weight +
+            volatility_signals.count("bullish") * volatility_weight
         )
         bearish_signals = (
-            insider_signals.count("bearish") * insider_weight +
-            news_signals.count("bearish") * news_weight
+            trading_signals.count("bearish") * trading_weight +
+            news_signals.count("bearish") * news_weight +
+            volatility_signals.count("bearish") * volatility_weight
         )
 
         if bullish_signals > bearish_signals:
@@ -68,38 +149,56 @@ def sentiment_analyst_agent(state: AgentState, agent_id: str = "sentiment_analys
             overall_signal = "neutral"
 
         # Calculate confidence level based on the weighted proportion
-        total_weighted_signals = len(insider_signals) * insider_weight + len(news_signals) * news_weight
+        total_weighted_signals = (
+            len(trading_signals) * trading_weight + 
+            len(news_signals) * news_weight +
+            len(volatility_signals) * volatility_weight
+        )
         confidence = 0  # Default confidence when there are no signals
         if total_weighted_signals > 0:
             confidence = round((max(bullish_signals, bearish_signals) / total_weighted_signals) * 100, 2)
         
-        # Create structured reasoning similar to technical analysis
+        # Create structured reasoning
         reasoning = {
-            "insider_trading": {
-                "signal": "bullish" if insider_signals.count("bullish") > insider_signals.count("bearish") else 
-                         "bearish" if insider_signals.count("bearish") > insider_signals.count("bullish") else "neutral",
-                "confidence": round((max(insider_signals.count("bullish"), insider_signals.count("bearish")) / max(len(insider_signals), 1)) * 100),
+            "trading_activity": {
+                "signal": "bullish" if trading_signals.count("bullish") > trading_signals.count("bearish") else 
+                         "bearish" if trading_signals.count("bearish") > trading_signals.count("bullish") else "neutral",
+                "confidence": round((max(trading_signals.count("bullish"), trading_signals.count("bearish")) / max(len(trading_signals), 1)) * 100),
                 "metrics": {
-                    "total_trades": len(insider_signals),
-                    "bullish_trades": insider_signals.count("bullish"),
-                    "bearish_trades": insider_signals.count("bearish"),
-                    "weight": insider_weight,
-                    "weighted_bullish": round(insider_signals.count("bullish") * insider_weight, 1),
-                    "weighted_bearish": round(insider_signals.count("bearish") * insider_weight, 1),
+                    "volume_ratio": round(volume_ratio, 2),
+                    "recent_return": f"{recent_returns:.2%}",
+                    "bullish_signals": trading_signals.count("bullish"),
+                    "bearish_signals": trading_signals.count("bearish"),
+                    "weight": trading_weight,
+                    "weighted_bullish": round(trading_signals.count("bullish") * trading_weight, 1),
+                    "weighted_bearish": round(trading_signals.count("bearish") * trading_weight, 1),
                 }
             },
-            "news_sentiment": {
+            "market_activity": {
                 "signal": "bullish" if news_signals.count("bullish") > news_signals.count("bearish") else 
                          "bearish" if news_signals.count("bearish") > news_signals.count("bullish") else "neutral",
                 "confidence": round((max(news_signals.count("bullish"), news_signals.count("bearish")) / max(len(news_signals), 1)) * 100),
                 "metrics": {
-                    "total_articles": len(news_signals),
-                    "bullish_articles": news_signals.count("bullish"),
-                    "bearish_articles": news_signals.count("bearish"),
-                    "neutral_articles": news_signals.count("neutral"),
+                    "total_events": len(news_signals),
+                    "bullish_events": news_signals.count("bullish"),
+                    "bearish_events": news_signals.count("bearish"),
+                    "neutral_events": news_signals.count("neutral"),
                     "weight": news_weight,
                     "weighted_bullish": round(news_signals.count("bullish") * news_weight, 1),
                     "weighted_bearish": round(news_signals.count("bearish") * news_weight, 1),
+                }
+            },
+            "volatility_sentiment": {
+                "signal": "bullish" if volatility_signals.count("bullish") > volatility_signals.count("bearish") else 
+                         "bearish" if volatility_signals.count("bearish") > volatility_signals.count("bullish") else "neutral",
+                "confidence": round((max(volatility_signals.count("bullish"), volatility_signals.count("bearish")) / max(len(volatility_signals), 1)) * 100),
+                "metrics": {
+                    "volatility_7d": f"{volatility_7d:.2%}",
+                    "bullish_signals": volatility_signals.count("bullish"),
+                    "bearish_signals": volatility_signals.count("bearish"),
+                    "weight": volatility_weight,
+                    "weighted_bullish": round(volatility_signals.count("bullish") * volatility_weight, 1),
+                    "weighted_bearish": round(volatility_signals.count("bearish") * volatility_weight, 1),
                 }
             },
             "combined_analysis": {

@@ -26,17 +26,22 @@ class AswathDamodaranSignal(BaseModel):
 
 def aswath_damodaran_agent(state: AgentState, agent_id: str = "aswath_damodaran_agent"):
     """
-    Analyze US equities through Aswath Damodaran's intrinsic-value lens:
-      • Cost of Equity via CAPM (risk-free + β·ERP)
-      • 5-yr revenue / FCFF growth trends & reinvestment efficiency
-      • FCFF-to-Firm DCF → equity value → per-share intrinsic value
-      • Cross-check with relative valuation (PE vs. Fwd PE sector median proxy)
-    Produces a trading signal and explanation in Damodaran's analytical voice.
+    Analyzes cryptocurrencies using Lyn Alden's rigorous macro + crypto framework:
+    
+    Focuses on:
+    - Macroeconomic analysis: Fed policy, liquidity cycles, monetary debasement
+    - Crypto fundamentals: network security, tokenomics, developer activity
+    - Multi-year growth trends and adoption metrics
+    - Valuation models: NVT, Stock-to-Flow, Metcalfe's Law adaptations
+    - Cross-asset comparisons: crypto as alternative to bonds/gold
+    - Risk-adjusted returns considering crypto-specific factors
+    
+    Produces a trading signal with Lyn Alden's macro-crypto analytical voice.
     """
     data      = state["data"]
     end_date  = data["end_date"]
     tickers   = data["tickers"]
-    api_key  = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key  = get_api_key_from_state(state, "BINANCE_API_KEY")
 
     analysis_data: dict[str, dict] = {}
     damodaran_signals: dict[str, dict] = {}
@@ -44,7 +49,7 @@ def aswath_damodaran_agent(state: AgentState, agent_id: str = "aswath_damodaran_
     for ticker in tickers:
         # ─── Fetch core data ────────────────────────────────────────────────────
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="ttm", limit=5, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="ttm", limit=5, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching financial line items")
         line_items = search_line_items(
@@ -64,7 +69,7 @@ def aswath_damodaran_agent(state: AgentState, agent_id: str = "aswath_damodaran_
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         # ─── Analyses ───────────────────────────────────────────────────────────
         progress.update_status(agent_id, ticker, "Analyzing growth and reinvestment")

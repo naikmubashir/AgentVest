@@ -23,20 +23,23 @@ class PhilFisherSignal(BaseModel):
 
 def phil_fisher_agent(state: AgentState, agent_id: str = "phil_fisher_agent"):
     """
-    Analyzes stocks using Phil Fisher's investing principles:
-      - Seek companies with long-term above-average growth potential
-      - Emphasize quality of management and R&D
-      - Look for strong margins, consistent growth, and manageable leverage
-      - Combine fundamental 'scuttlebutt' style checks with basic sentiment and insider data
-      - Willing to pay up for quality, but still mindful of valuation
-      - Generally focuses on long-term compounding
-
+    Analyzes cryptocurrencies using Chris Burniske's crypto network investing principles:
+    
+    Focuses on:
+    - Protocols with long-term above-average network growth potential
+    - Quality of development team and innovation pipeline
+    - Strong network effects, consistent user growth, healthy tokenomics
+    - "Scuttlebutt" research: community engagement, developer activity, partnerships
+    - Willing to pay premium for quality protocols with sustainable moats
+    - Focus on long-term compounding through network effects
+    - Emphasis on Layer 1s and innovative DeFi protocols
+    
     Returns a bullish/bearish/neutral signal with confidence and reasoning.
     """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     analysis_data = {}
     fisher_analysis = {}
 
@@ -71,13 +74,13 @@ def phil_fisher_agent(state: AgentState, agent_id: str = "phil_fisher_agent"):
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching insider trades")
-        insider_trades = get_insider_trades(ticker, end_date, limit=50, api_key=api_key)
+        insider_trades = get_insider_trades(symbol=ticker, end_date=end_date, limit=50, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching company news")
-        company_news = get_company_news(ticker, end_date, limit=50, api_key=api_key)
+        company_news = get_company_news(symbol=ticker, end_date=end_date, limit=50, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Analyzing growth & quality")
         growth_quality = analyze_fisher_growth_quality(financial_line_items)

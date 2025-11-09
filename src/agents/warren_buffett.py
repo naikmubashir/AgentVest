@@ -16,11 +16,22 @@ class WarrenBuffettSignal(BaseModel):
 
 
 def warren_buffett_agent(state: AgentState, agent_id: str = "warren_buffett_agent"):
-    """Analyzes stocks using Buffett's principles and LLM reasoning."""
+    """
+    Analyzes cryptocurrencies using Vitalik Buterin's (Ethereum founder) principles and LLM reasoning.
+    
+    Focuses on:
+    1. Protocol fundamentals and network effects (like Buffett's moats)
+    2. Developer activity and community strength
+    3. Long-term value creation through technological innovation
+    4. Sustainable tokenomics and value capture mechanisms
+    5. Network security and decentralization metrics
+    
+    Crypto-adapted version of value investing for digital assets.
+    """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     # Collect all analysis for LLM reasoning
     analysis_data = {}
     buffett_analysis = {}
@@ -28,7 +39,7 @@ def warren_buffett_agent(state: AgentState, agent_id: str = "warren_buffett_agen
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
         # Fetch required data - request more periods for better trend analysis
-        metrics = get_financial_metrics(ticker, end_date, period="ttm", limit=10, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="ttm", limit=10, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Gathering financial line items")
         financial_line_items = search_line_items(
@@ -55,7 +66,7 @@ def warren_buffett_agent(state: AgentState, agent_id: str = "warren_buffett_agen
 
         progress.update_status(agent_id, ticker, "Getting market cap")
         # Get current market cap
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Analyzing fundamentals")
         # Analyze fundamentals

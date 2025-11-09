@@ -19,29 +19,34 @@ class BenGrahamSignal(BaseModel):
 
 def ben_graham_agent(state: AgentState, agent_id: str = "ben_graham_agent"):
     """
-    Analyzes stocks using Benjamin Graham's classic value-investing principles:
-    1. Earnings stability over multiple years.
-    2. Solid financial strength (low debt, adequate liquidity).
-    3. Discount to intrinsic value (e.g. Graham Number or net-net).
-    4. Adequate margin of safety.
+    Analyzes cryptocurrencies using Willy Woo's on-chain data-driven principles:
+    
+    Focuses on:
+    1. Network value metrics (NVT ratio, MVRV, Realized Cap)
+    2. On-chain activity: active addresses, transaction volumes, hash rate
+    3. Supply dynamics: holder behavior, accumulation trends, exchange flows
+    4. Market cycle indicators: SOPR, aSOPR, Puell Multiple
+    5. Data-driven margin of safety through on-chain valuation models
+    
+    Crypto-adapted version of value investing using blockchain analytics.
     """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     
     analysis_data = {}
     graham_analysis = {}
 
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="annual", limit=10, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="annual", limit=10, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Gathering financial line items")
-        financial_line_items = search_line_items(ticker, ["earnings_per_share", "revenue", "net_income", "book_value_per_share", "total_assets", "total_liabilities", "current_assets", "current_liabilities", "dividends_and_other_cash_distributions", "outstanding_shares"], end_date, period="annual", limit=10, api_key=api_key)
+        financial_line_items = search_line_items(symbol=ticker, line_items=["earnings_per_share", "revenue", "net_income", "book_value_per_share", "total_assets", "total_liabilities", "current_assets", "current_liabilities", "dividends_and_other_cash_distributions", "outstanding_shares"], end_date=end_date, period="annual", limit=10, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         # Perform sub-analyses
         progress.update_status(agent_id, ticker, "Analyzing earnings stability")

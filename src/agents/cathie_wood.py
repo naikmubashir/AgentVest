@@ -18,22 +18,28 @@ class CathieWoodSignal(BaseModel):
 
 def cathie_wood_agent(state: AgentState, agent_id: str = "cathie_wood_agent"):
     """
-    Analyzes stocks using Cathie Wood's investing principles and LLM reasoning.
-    1. Prioritizes companies with breakthrough technologies or business models
-    2. Focuses on industries with rapid adoption curves and massive TAM (Total Addressable Market).
-    3. Invests mostly in AI, robotics, genomic sequencing, fintech, and blockchain.
-    4. Willing to endure short-term volatility for long-term gains.
+    Analyzes cryptocurrencies using Raoul Pal's macro and exponential growth principles.
+    
+    Focuses on:
+    1. Network effects and exponential adoption curves (Metcalfe's Law)
+    2. Macro liquidity trends and their impact on crypto markets
+    3. "Everything Code" thesis - crypto as the future of finance
+    4. Layer 1 protocols and DeFi innovation with massive TAM
+    5. Willing to endure short-term volatility for exponential long-term gains
+    6. Focus on Bitcoin and Ethereum as macro assets, plus emerging L1s
+    
+    Crypto-adapted version of disruptive innovation investing.
     """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     analysis_data = {}
     cw_analysis = {}
 
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="annual", limit=5, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="annual", limit=5, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Gathering financial line items")
         # Request multiple periods of data (annual or TTM) for a more robust view.
@@ -60,7 +66,7 @@ def cathie_wood_agent(state: AgentState, agent_id: str = "cathie_wood_agent"):
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Analyzing disruptive potential")
         disruptive_analysis = analyze_disruptive_potential(metrics, financial_line_items)

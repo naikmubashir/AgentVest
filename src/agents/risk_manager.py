@@ -7,13 +7,32 @@ import numpy as np
 import pandas as pd
 from src.utils.api_key import get_api_key_from_state
 
+# Crypto-specific risk parameters
+CRYPTO_RISK_FACTORS = {
+    "volatility_multiplier": 2.0,  # Crypto is typically 2x more volatile than stocks
+    "max_position_size": 0.15,  # Max 15% per position (vs 20% for stocks)
+    "min_position_size": 0.02,  # Min 2% to make meaningful trades
+    "liquidity_buffer": 0.20,  # 20% buffer for slippage in crypto markets
+    "correlation_threshold": 0.7,  # High correlation warning threshold
+    "extreme_volatility_threshold": 0.10,  # 10% daily volatility considered extreme
+    "safe_volatility_threshold": 0.03,  # 3% daily volatility considered safe
+}
+
 ##### Risk Management Agent #####
 def risk_management_agent(state: AgentState, agent_id: str = "risk_management_agent"):
-    """Controls position sizing based on volatility-adjusted risk factors for multiple tickers."""
+    """
+    Controls position sizing based on volatility-adjusted risk factors for multiple tickers.
+    
+    Crypto-specific considerations:
+    1. 24/7 trading - no market close for rebalancing
+    2. Higher volatility - more conservative position sizing
+    3. Liquidity risk - potential for large slippage
+    4. No circuit breakers - extreme moves possible
+    """
     portfolio = state["data"]["portfolio"]
     data = state["data"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     
     # Initialize risk analysis for each ticker
     risk_analysis = {}
@@ -28,7 +47,7 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
         progress.update_status(agent_id, ticker, "Fetching price data and calculating volatility")
         
         prices = get_prices(
-            ticker=ticker,
+            symbol=ticker,
             start_date=data["start_date"],
             end_date=data["end_date"],
             api_key=api_key,
@@ -220,11 +239,15 @@ def risk_management_agent(state: AgentState, agent_id: str = "risk_management_ag
 
 
 def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 60) -> dict:
-    """Calculate comprehensive volatility metrics from price data."""
+    """
+    Calculate comprehensive volatility metrics from price data.
+    
+    For crypto: Uses 365 days for annualization since crypto trades 24/7.
+    """
     if len(prices_df) < 2:
         return {
-            "daily_volatility": 0.05,
-            "annualized_volatility": 0.05 * np.sqrt(252),
+            "daily_volatility": CRYPTO_RISK_FACTORS["safe_volatility_threshold"],
+            "annualized_volatility": CRYPTO_RISK_FACTORS["safe_volatility_threshold"] * np.sqrt(365),
             "volatility_percentile": 100,
             "data_points": len(prices_df)
         }
@@ -234,8 +257,8 @@ def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 6
     
     if len(daily_returns) < 2:
         return {
-            "daily_volatility": 0.05,
-            "annualized_volatility": 0.05 * np.sqrt(252),
+            "daily_volatility": CRYPTO_RISK_FACTORS["safe_volatility_threshold"],
+            "annualized_volatility": CRYPTO_RISK_FACTORS["safe_volatility_threshold"] * np.sqrt(365),
             "volatility_percentile": 100,
             "data_points": len(daily_returns)
         }
@@ -245,7 +268,8 @@ def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 6
     
     # Calculate volatility metrics
     daily_vol = recent_returns.std()
-    annualized_vol = daily_vol * np.sqrt(252)  # Annualize assuming 252 trading days
+    # For crypto: Annualize using 365 days (24/7 trading)
+    annualized_vol = daily_vol * np.sqrt(365)  # Crypto trades every day
     
     # Calculate percentile rank of recent volatility vs historical volatility
     if len(daily_returns) >= 30:  # Need sufficient history for percentile calculation
@@ -260,8 +284,8 @@ def calculate_volatility_metrics(prices_df: pd.DataFrame, lookback_days: int = 6
         current_vol_percentile = 50  # Default to median if insufficient data
     
     return {
-        "daily_volatility": float(daily_vol) if not np.isnan(daily_vol) else 0.025,
-        "annualized_volatility": float(annualized_vol) if not np.isnan(annualized_vol) else 0.25,
+        "daily_volatility": float(daily_vol) if not np.isnan(daily_vol) else CRYPTO_RISK_FACTORS["safe_volatility_threshold"],
+        "annualized_volatility": float(annualized_vol) if not np.isnan(annualized_vol) else CRYPTO_RISK_FACTORS["safe_volatility_threshold"] * np.sqrt(365),
         "volatility_percentile": float(current_vol_percentile) if not np.isnan(current_vol_percentile) else 50.0,
         "data_points": len(recent_returns)
     }
@@ -271,29 +295,33 @@ def calculate_volatility_adjusted_limit(annualized_volatility: float) -> float:
     """
     Calculate position limit as percentage of portfolio based on volatility.
     
-    Logic:
-    - Low volatility (<15%): Up to 25% allocation
-    - Medium volatility (15-30%): 15-20% allocation  
-    - High volatility (>30%): 10-15% allocation
-    - Very high volatility (>50%): Max 10% allocation
+    Crypto-adjusted logic (more conservative due to higher volatility):
+    - Low volatility (<25%): Up to 15% allocation (vs 25% for stocks)
+    - Medium volatility (25-50%): 10-15% allocation  
+    - High volatility (50-75%): 5-10% allocation
+    - Very high volatility (>75%): Max 5% allocation
+    - Extreme volatility (>100%): Max 2% allocation
     """
-    base_limit = 0.20  # 20% baseline
+    base_limit = CRYPTO_RISK_FACTORS["max_position_size"]  # 15% baseline for crypto
     
-    if annualized_volatility < 0.15:  # Low volatility
-        # Allow higher allocation for stable stocks
-        vol_multiplier = 1.25  # Up to 25%
-    elif annualized_volatility < 0.30:  # Medium volatility  
-        # Standard allocation with slight adjustment based on volatility
-        vol_multiplier = 1.0 - (annualized_volatility - 0.15) * 0.5  # 20% -> 12.5%
-    elif annualized_volatility < 0.50:  # High volatility
+    if annualized_volatility < 0.25:  # Low volatility for crypto
+        # Allow standard allocation for stable crypto
+        vol_multiplier = 1.0  # Up to 15%
+    elif annualized_volatility < 0.50:  # Medium volatility  
+        # Reduce allocation moderately
+        vol_multiplier = 0.85 - (annualized_volatility - 0.25) * 0.4  # 15% -> 10%
+    elif annualized_volatility < 0.75:  # High volatility
         # Reduce allocation significantly
-        vol_multiplier = 0.75 - (annualized_volatility - 0.30) * 0.5  # 15% -> 5%
-    else:  # Very high volatility (>50%)
-        # Minimum allocation for very risky stocks
-        vol_multiplier = 0.50  # Max 10%
+        vol_multiplier = 0.65 - (annualized_volatility - 0.50) * 0.6  # 10% -> 5%
+    elif annualized_volatility < 1.00:  # Very high volatility
+        # Minimal allocation for very risky crypto
+        vol_multiplier = 0.30  # ~5%
+    else:  # Extreme volatility (>100%)
+        # Tiny allocation for extremely volatile crypto
+        vol_multiplier = 0.13  # ~2%
     
-    # Apply bounds to ensure reasonable limits
-    vol_multiplier = max(0.25, min(1.25, vol_multiplier))  # 5% to 25% range
+    # Apply bounds to ensure reasonable limits for crypto
+    vol_multiplier = max(0.13, min(1.0, vol_multiplier))  # 2% to 15% range
     
     return base_limit * vol_multiplier
 

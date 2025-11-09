@@ -30,8 +30,20 @@ class MichaelBurrySignal(BaseModel):
 
 
 def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"):
-    """Analyse stocks using Michael Burry's deep‑value, contrarian framework."""
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    """
+    Analyzes cryptocurrencies using Arthur Hayes's (ex-BitMEX CEO) contrarian macro framework.
+    
+    Focuses on:
+    - Deep contrarian bets against consensus narratives
+    - Macro analysis of central bank policies and their crypto impact
+    - Identifying overvalued narratives and undervalued opportunities
+    - Risk-on/risk-off cycles and their effect on crypto leverage
+    - Focus on Bitcoin as macro hedge and altcoin opportunities during dislocations
+    - Willing to short overheated markets and narratives
+    
+    Crypto-adapted version of "The Big Short" contrarian investing.
+    """
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     data = state["data"]
     end_date: str = data["end_date"]  # YYYY‑MM‑DD
     tickers: list[str] = data["tickers"]
@@ -47,7 +59,7 @@ def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"
         # Fetch raw data
         # ------------------------------------------------------------------
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="ttm", limit=5, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="ttm", limit=5, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching line items")
         line_items = search_line_items(
@@ -67,13 +79,13 @@ def michael_burry_agent(state: AgentState, agent_id: str = "michael_burry_agent"
         )
 
         progress.update_status(agent_id, ticker, "Fetching insider trades")
-        insider_trades = get_insider_trades(ticker, end_date=end_date, start_date=start_date)
+        insider_trades = get_insider_trades(symbol=ticker, end_date=end_date, start_date=start_date)
 
         progress.update_status(agent_id, ticker, "Fetching company news")
-        news = get_company_news(ticker, end_date=end_date, start_date=start_date, limit=250)
+        news = get_company_news(symbol=ticker, end_date=end_date, start_date=start_date, limit=250)
 
         progress.update_status(agent_id, ticker, "Fetching market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         # ------------------------------------------------------------------
         # Run sub‑analyses

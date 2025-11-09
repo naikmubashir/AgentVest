@@ -18,20 +18,27 @@ class BillAckmanSignal(BaseModel):
 
 def bill_ackman_agent(state: AgentState, agent_id: str = "bill_ackman_agent"):
     """
-    Analyzes stocks using Bill Ackman's investing principles and LLM reasoning.
-    Fetches multiple periods of data for a more robust long-term view.
-    Incorporates brand/competitive advantage, activism potential, and other key factors.
+    Analyzes cryptocurrencies using Barry Silbert's (Digital Currency Group) advocacy principles.
+    
+    Focuses on:
+    - Strategic positioning in crypto infrastructure and projects
+    - Activist approach to promoting crypto adoption and regulatory clarity
+    - Building crypto ecosystems through Grayscale, Genesis, and portfolio companies
+    - Long-term value creation through institutional adoption
+    - Identifying undervalued crypto assets with strong fundamentals
+    
+    Crypto-adapted version of activist value investing.
     """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     analysis_data = {}
     ackman_analysis = {}
     
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="annual", limit=5, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="annual", limit=5, api_key=api_key)
         
         progress.update_status(agent_id, ticker, "Gathering financial line items")
         # Request multiple periods of data (annual or TTM) for a more robust long-term view.
@@ -56,7 +63,7 @@ def bill_ackman_agent(state: AgentState, agent_id: str = "bill_ackman_agent"):
         )
         
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
         
         progress.update_status(agent_id, ticker, "Analyzing business quality")
         quality_analysis = analyze_business_quality(metrics, financial_line_items)

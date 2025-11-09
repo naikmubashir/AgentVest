@@ -25,11 +25,13 @@ class StanleyDruckenmillerSignal(BaseModel):
 
 def stanley_druckenmiller_agent(state: AgentState, agent_id: str = "stanley_druckenmiller_agent"):
     """
-    Analyzes stocks using Stanley Druckenmiller's investing principles:
-      - Seeking asymmetric risk-reward opportunities
-      - Emphasizing growth, momentum, and sentiment
-      - Willing to be aggressive if conditions are favorable
-      - Focus on preserving capital by avoiding high-risk, low-reward bets
+    Analyzes cryptocurrencies using Mike Novogratz's (Galaxy Digital) institutional principles:
+      - Focus on macro trends driving institutional crypto adoption
+      - Seeking asymmetric risk-reward opportunities in Bitcoin, Ethereum, and major altcoins
+      - Emphasizing network growth, institutional flows, and regulatory clarity
+      - Willing to be aggressive during macro liquidity expansion cycles
+      - Focus on capital preservation during risk-off periods
+      - Top-down analysis: Fed policy → liquidity → crypto asset performance
 
     Returns a bullish/bearish/neutral signal with confidence and reasoning.
     """
@@ -37,13 +39,13 @@ def stanley_druckenmiller_agent(state: AgentState, agent_id: str = "stanley_druc
     start_date = data["start_date"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     analysis_data = {}
     druck_analysis = {}
 
     for ticker in tickers:
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="annual", limit=5, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="annual", limit=5, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Gathering financial line items")
         # Include relevant line items for Stan Druckenmiller's approach:
@@ -76,16 +78,16 @@ def stanley_druckenmiller_agent(state: AgentState, agent_id: str = "stanley_druc
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching insider trades")
-        insider_trades = get_insider_trades(ticker, end_date, limit=50, api_key=api_key)
+        insider_trades = get_insider_trades(symbol=ticker, end_date=end_date, limit=50, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching company news")
-        company_news = get_company_news(ticker, end_date, limit=50, api_key=api_key)
+        company_news = get_company_news(symbol=ticker, end_date=end_date, limit=50, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching recent price data for momentum")
-        prices = get_prices(ticker, start_date=start_date, end_date=end_date, api_key=api_key)
+        prices = get_prices(symbol=ticker, start_date=start_date, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Analyzing growth & momentum")
         growth_momentum_analysis = analyze_growth_and_momentum(financial_line_items, prices)

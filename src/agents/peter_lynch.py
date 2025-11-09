@@ -26,14 +26,14 @@ class PeterLynchSignal(BaseModel):
 
 def peter_lynch_agent(state: AgentState, agent_id: str = "peter_lynch_agent"):
     """
-    Analyzes stocks using Peter Lynch's investing principles:
-      - Invest in what you know (clear, understandable businesses).
-      - Growth at a Reasonable Price (GARP), emphasizing the PEG ratio.
-      - Look for consistent revenue & EPS increases and manageable debt.
-      - Be alert for potential "ten-baggers" (high-growth opportunities).
-      - Avoid overly complex or highly leveraged businesses.
-      - Use news sentiment and insider trades for secondary inputs.
-      - If fundamentals strongly align with GARP, be more aggressive.
+    Analyzes cryptocurrencies using Michael Saylor's (MicroStrategy CEO) Bitcoin principles:
+      - "Study what you hold" - deep understanding of monetary properties and scarcity.
+      - Focus on Bitcoin as digital property and store of value.
+      - Look for strong network fundamentals: hash rate, active addresses, transaction volume.
+      - Emphasize adoption metrics and institutional accumulation trends.
+      - Avoid speculative tokens; prefer established protocols with proven track records.
+      - Use on-chain metrics and market sentiment for validation.
+      - Long-term conviction based on monetary debasement and digital scarcity thesis.
 
     The result is a bullish/bearish/neutral signal, along with a
     confidence (0–100) and a textual reasoning explanation.
@@ -42,7 +42,7 @@ def peter_lynch_agent(state: AgentState, agent_id: str = "peter_lynch_agent"):
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     analysis_data = {}
     lynch_analysis = {}
 
@@ -72,13 +72,13 @@ def peter_lynch_agent(state: AgentState, agent_id: str = "peter_lynch_agent"):
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching insider trades")
-        insider_trades = get_insider_trades(ticker, end_date, limit=50, api_key=api_key)
+        insider_trades = get_insider_trades(symbol=ticker, end_date=end_date, limit=50, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching company news")
-        company_news = get_company_news(ticker, end_date, limit=50, api_key=api_key)
+        company_news = get_company_news(symbol=ticker, end_date=end_date, limit=50, api_key=api_key)
 
         # Perform sub-analyses:
         progress.update_status(agent_id, ticker, "Analyzing growth")

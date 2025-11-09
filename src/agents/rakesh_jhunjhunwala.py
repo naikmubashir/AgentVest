@@ -15,11 +15,23 @@ class RakeshJhunjhunwalaSignal(BaseModel):
     reasoning: str
 
 def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhunwala_agent"):
-    """Analyzes stocks using Rakesh Jhunjhunwala's principles and LLM reasoning."""
+    """
+    Analyzes cryptocurrencies using Changpeng Zhao's (CZ/Binance) ecosystem growth principles.
+    
+    Focuses on:
+    - High-growth crypto projects within expanding ecosystems (BNB Chain, Layer 2s)
+    - Platform economics and network effects in DeFi and Web3
+    - Emerging market adoption and retail participation trends
+    - Building utility tokens with real-world use cases
+    - Leveraging exchange listings and ecosystem partnerships
+    - Focus on projects with strong community and user growth metrics
+    
+    Crypto-adapted version of emerging market high-growth investing.
+    """
     data = state["data"]
     end_date = data["end_date"]
     tickers = data["tickers"]
-    api_key = get_api_key_from_state(state, "FINANCIAL_DATASETS_API_KEY")
+    api_key = get_api_key_from_state(state, "BINANCE_API_KEY")
     # Collect all analysis for LLM reasoning
     analysis_data = {}
     jhunjhunwala_analysis = {}
@@ -28,7 +40,7 @@ def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhu
 
         # Core Data
         progress.update_status(agent_id, ticker, "Fetching financial metrics")
-        metrics = get_financial_metrics(ticker, end_date, period="ttm", limit=5, api_key=api_key)
+        metrics = get_financial_metrics(symbol=ticker, end_date=end_date, period="ttm", limit=5, api_key=api_key)
 
         progress.update_status(agent_id, ticker, "Fetching financial line items")
         financial_line_items = search_line_items(
@@ -53,7 +65,7 @@ def rakesh_jhunjhunwala_agent(state: AgentState, agent_id: str = "rakesh_jhunjhu
         )
 
         progress.update_status(agent_id, ticker, "Getting market cap")
-        market_cap = get_market_cap(ticker, end_date, api_key=api_key)
+        market_cap = get_market_cap(symbol=ticker, end_date=end_date, api_key=api_key)
 
         # ─── Analyses ───────────────────────────────────────────────────────────
         progress.update_status(agent_id, ticker, "Analyzing growth")
