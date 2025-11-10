@@ -44,8 +44,13 @@ OPENAI_API_KEY=your-openai-api-key
 # For running LLMs hosted by groq (deepseek, llama3, etc.)
 GROQ_API_KEY=your-groq-api-key
 
-# For getting financial data to power the hedge fund
-FINANCIAL_DATASETS_API_KEY=your-financial-datasets-api-key
+# For getting cryptocurrency data from Binance
+BINANCE_API_KEY=your-binance-api-key
+BINANCE_API_SECRET=your-binance-api-secret
+
+# For getting cryptocurrency market data (optional)
+COINGECKO_API_KEY=your-coingecko-api-key
+CRYPTOPANIC_API_KEY=your-cryptopanic-api-key
 ```
 
 ## Running the Server

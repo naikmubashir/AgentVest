@@ -80,13 +80,18 @@ GIGACHAT_API_KEY=your-gigachat-api-key
 # For running LLMs hosted by groq (deepseek, llama3, etc.)
 GROQ_API_KEY=your-groq-api-key
 
-# For getting financial data to power the hedge fund
-FINANCIAL_DATASETS_API_KEY=your-financial-datasets-api-key
+# For getting cryptocurrency data from Binance (optional - public endpoints work without keys)
+BINANCE_API_KEY=your-binance-api-key
+BINANCE_API_SECRET=your-binance-api-secret
+
+# For getting cryptocurrency market cap and news (optional)
+COINGECKO_API_KEY=your-coingecko-api-key
+CRYPTOPANIC_API_KEY=your-cryptopanic-api-key
 ```
 
 **Important**: You must set at least one LLM API key (`OPENAI_API_KEY`, `GROQ_API_KEY`, `ANTHROPIC_API_KEY`, or `DEEPSEEK_API_KEY`) for the hedge fund to work. 
 
-**Financial Data**: Data for AAPL, GOOGL, MSFT, NVDA, and TSLA is free and does not require an API key. For any other ticker, you will need to set the `FINANCIAL_DATASETS_API_KEY` in the .env file.
+**Cryptocurrency Data**: The system uses Binance API for cryptocurrency price data. Public endpoints work without an API key for basic functionality. For enhanced features (news, market cap), you can optionally add CoinGecko and CryptoPanic API keys.
 
 ## How to Run
 
