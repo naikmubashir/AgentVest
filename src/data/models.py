@@ -42,23 +42,23 @@ class FinancialMetrics(BaseModel):
     operating_cycle: float | None
     working_capital_turnover: float | None
     current_ratio: float | None
-    quick_ratio: float | None
-    cash_ratio: float | None
-    operating_cash_flow_ratio: float | None
-    debt_to_equity: float | None
-    debt_to_assets: float | None
-    interest_coverage: float | None
-    revenue_growth: float | None
-    earnings_growth: float | None
-    book_value_growth: float | None
-    earnings_per_share_growth: float | None
-    free_cash_flow_growth: float | None
-    operating_income_growth: float | None
-    ebitda_growth: float | None
-    payout_ratio: float | None
-    earnings_per_share: float | None
-    book_value_per_share: float | None
-    free_cash_flow_per_share: float | None
+    quick_ratio: float | None = None
+    cash_ratio: float | None = None
+    operating_cash_flow_ratio: float | None = None
+    debt_to_equity: float | None = None
+    debt_to_assets: float | None = None
+    interest_coverage: float | None = None
+    revenue_growth: float | None = None
+    earnings_growth: float | None = None
+    book_value_growth: float | None = None
+    earnings_per_share_growth: float | None = None
+    free_cash_flow_growth: float | None = None
+    operating_income_growth: float | None = None
+    ebitda_growth: float | None = None
+    payout_ratio: float | None = None
+    earnings_per_share: float | None = None
+    book_value_per_share: float | None = None
+    free_cash_flow_per_share: float | None = None
 
 
 class FinancialMetricsResponse(BaseModel):
@@ -111,6 +111,58 @@ class CompanyNews(BaseModel):
 
 class CompanyNewsResponse(BaseModel):
     news: list[CompanyNews]
+
+
+# Crypto-specific models
+class CryptoMetrics(BaseModel):
+    """Cryptocurrency-specific market metrics"""
+    ticker: str  # e.g., "BTCUSDT"
+    timestamp: str
+    
+    # Price & Volume
+    current_price: float
+    volume_24h: float
+    quote_volume_24h: float
+    
+    # Market Metrics
+    market_cap: float | None = None
+    circulating_supply: float | None = None
+    total_supply: float | None = None
+    max_supply: float | None = None
+    
+    # Performance
+    price_change_24h: float
+    price_change_percent_24h: float
+    high_24h: float
+    low_24h: float
+    
+    # Volatility & Trading
+    volatility_30d: float | None = None
+    average_volume_30d: float | None = None
+    trades_24h: int | None = None
+    
+    # On-chain metrics (optional, from external APIs)
+    active_addresses: int | None = None
+    transaction_count: int | None = None
+    exchange_inflow: float | None = None
+    exchange_outflow: float | None = None
+    whale_transaction_count: int | None = None
+
+
+class CryptoNews(BaseModel):
+    """Enhanced cryptocurrency news model"""
+    title: str
+    description: str
+    published_at: str
+    source: str
+    url: str
+    symbols: list[str]  # Crypto symbols mentioned
+    sentiment: str | None = None  # "positive", "negative", "neutral"
+    importance: int | None = None  # 1-10 scale
+
+
+class CryptoNewsResponse(BaseModel):
+    news: list[CryptoNews]
 
 
 class CompanyFacts(BaseModel):
