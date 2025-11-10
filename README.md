@@ -2,21 +2,21 @@
 
 This is a proof of concept for an AI-powered hedge fund.  The goal of this project is to explore the use of AI to make trading decisions.  This project is for **educational** purposes only and is not intended for real trading or investment.
 
-This system employs several agents working together:
+This system employs several crypto-focused agents working together:
 
-1. Aswath Damodaran Agent - The Dean of Valuation, focuses on story, numbers, and disciplined valuation
-2. Ben Graham Agent - The godfather of value investing, only buys hidden gems with a margin of safety
-3. Bill Ackman Agent - An activist investor, takes bold positions and pushes for change
-4. Cathie Wood Agent - The queen of growth investing, believes in the power of innovation and disruption
-5. Charlie Munger Agent - Warren Buffett's partner, only buys wonderful businesses at fair prices
-6. Michael Burry Agent - The Big Short contrarian who hunts for deep value
-7. Mohnish Pabrai Agent - The Dhandho investor, who looks for doubles at low risk
-8. Peter Lynch Agent - Practical investor who seeks "ten-baggers" in everyday businesses
-9. Phil Fisher Agent - Meticulous growth investor who uses deep "scuttlebutt" research 
-10. Rakesh Jhunjhunwala Agent - The Big Bull of India
-11. Stanley Druckenmiller Agent - Macro legend who hunts for asymmetric opportunities with growth potential
-12. Warren Buffett Agent - The oracle of Omaha, seeks wonderful companies at a fair price
-13. Valuation Agent - Calculates the intrinsic value of a stock and generates trading signals
+1. Vitalik Buterin Agent - The Ethereum Visionary, focuses on protocol fundamentals and network effects
+2. Willy Woo Agent - On-chain analyst who uses data-driven metrics for network valuation
+3. Barry Silbert Agent - Crypto advocate focused on institutional positioning and ecosystem building
+4. Raoul Pal Agent - Macro bull who analyzes exponential growth and "Everything Code" thesis
+5. Nick Szabo Agent - Cryptographic rationalist emphasizing smart contracts and decentralization
+6. Arthur Hayes Agent - Contrarian macro trader who capitalizes on market dislocations
+7. Pomp (Anthony Pompliano) Agent - Bitcoin maximalist focusing on sound money and asymmetric upside
+8. Michael Saylor Agent - Bitcoin maximalist who studies digital scarcity deeply
+9. Chris Burniske Agent - Protocol analyst who examines network effects and long-term growth
+10. Changpeng Zhao (CZ) Agent - Ecosystem builder focused on DeFi/Web3 and platform economics
+11. Mike Novogratz Agent - Institutional adoption expert analyzing macro trends
+12. Lyn Alden Agent - Macro + crypto fundamentals analyst with rigorous Fed policy analysis
+13. Valuation Agent - Calculates the intrinsic value of crypto assets and generates trading signals
 14. Sentiment Agent - Analyzes market sentiment and generates trading signals
 15. Fundamentals Agent - Analyzes fundamental data and generates trading signals
 16. Technicals Agent - Analyzes technical indicators and generates trading signals
