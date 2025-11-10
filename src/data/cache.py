@@ -7,6 +7,9 @@ class Cache:
         self._line_items_cache: dict[str, list[dict[str, any]]] = {}
         self._insider_trades_cache: dict[str, list[dict[str, any]]] = {}
         self._company_news_cache: dict[str, list[dict[str, any]]] = {}
+        # Crypto-specific caches
+        self._crypto_metrics_cache: dict[str, list[dict[str, any]]] = {}
+        self._onchain_data_cache: dict[str, dict[str, any]] = {}
 
     def _merge_data(self, existing: list[dict] | None, new_data: list[dict], key_field: str) -> list[dict]:
         """Merge existing and new data, avoiding duplicates based on a key field."""
@@ -60,6 +63,22 @@ class Cache:
     def set_company_news(self, ticker: str, data: list[dict[str, any]]):
         """Append new company news to cache."""
         self._company_news_cache[ticker] = self._merge_data(self._company_news_cache.get(ticker), data, key_field="date")
+
+    def get_crypto_metrics(self, key: str) -> list[dict[str, any]] | None:
+        """Get cached cryptocurrency metrics if available."""
+        return self._crypto_metrics_cache.get(key)
+
+    def set_crypto_metrics(self, key: str, metrics: list[dict[str, any]]):
+        """Cache cryptocurrency market metrics."""
+        self._crypto_metrics_cache[key] = metrics
+
+    def get_onchain_data(self, key: str) -> dict[str, any] | None:
+        """Get cached on-chain analytics data if available."""
+        return self._onchain_data_cache.get(key)
+
+    def set_onchain_data(self, key: str, data: dict[str, any]):
+        """Cache on-chain analytics data."""
+        self._onchain_data_cache[key] = data
 
 
 # Global cache instance
