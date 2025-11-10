@@ -46,6 +46,16 @@ def call_llm(
             api_keys = request.api_keys
 
     model_info = get_model_info(model_name, model_provider)
+    
+    # Convert model_provider string to ModelProvider enum if needed
+    from src.llm.models import ModelProvider
+    if isinstance(model_provider, str):
+        try:
+            model_provider = ModelProvider(model_provider)
+        except ValueError:
+            print(f"Invalid model provider: {model_provider}")
+            model_provider = ModelProvider.GOOGLE  # Default fallback
+    
     llm = get_model(model_name, model_provider, api_keys)
 
     # For non-JSON support models, we can use structured output
@@ -115,7 +125,8 @@ def extract_json_from_response(content: str) -> dict | None:
             json_end = json_text.find("```")
             if json_end != -1:
                 json_text = json_text[:json_end].strip()
-                return json.loads(json_text)
+                # Use strict=False to allow control characters
+                return json.loads(json_text, strict=False)
     except Exception as e:
         print(f"Error extracting JSON from response: {e}")
     return None
