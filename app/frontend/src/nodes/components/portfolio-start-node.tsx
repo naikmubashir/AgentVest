@@ -299,7 +299,7 @@ export function PortfolioStartNode({
                       <span>Positions</span>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      Add your portfolio positions with ticker, quantity, and trade price
+                      Add your portfolio positions with crypto symbol (e.g., BTCUSDT, ETHUSDT), quantity, and trade price
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -308,7 +308,7 @@ export function PortfolioStartNode({
                     return (
                     <div key={index} className="flex gap-2 items-center">
                       <Input
-                        placeholder="Ticker"
+                        placeholder="BTCUSDT"
                         value={position.ticker}
                         onChange={(e) => handlePositionChange(index, 'ticker', e.target.value)}
                         className="flex-1"

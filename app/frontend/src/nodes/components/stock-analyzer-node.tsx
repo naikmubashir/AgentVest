@@ -257,12 +257,12 @@ export function StockAnalyzerNode({
                       <span>Tickers</span>
                     </TooltipTrigger>
                     <TooltipContent side="right">
-                      You can add multiple tickers using commas (AAPL,NVDA,TSLA)
+                      You can add multiple crypto symbols using commas (e.g., BTCUSDT,ETHUSDT,BNBUSDT)
                     </TooltipContent>
                   </Tooltip>
                 </div>
                 <Input
-                  placeholder="Enter tickers"
+                  placeholder="Enter crypto symbols (e.g., BTCUSDT, ETHUSDT)"
                   value={tickers}
                   onChange={handleTickersChange}
                 />
