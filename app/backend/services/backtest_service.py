@@ -224,13 +224,13 @@ class BacktestService:
         end_date_dt = datetime.strptime(self.end_date, "%Y-%m-%d")
         start_date_dt = end_date_dt - relativedelta(years=1)
         start_date_str = start_date_dt.strftime("%Y-%m-%d")
-        api_key = self.request.api_keys.get("FINANCIAL_DATASETS_API_KEY")
+        api_key = self.request.api_keys.get("BINANCE_API_KEY")
 
         for ticker in self.tickers:
-            get_prices(ticker, start_date_str, self.end_date, api_key=api_key)
-            get_financial_metrics(ticker, self.end_date, limit=10, api_key=api_key)
-            get_insider_trades(ticker, self.end_date, start_date=self.start_date, limit=1000, api_key=api_key)
-            get_company_news(ticker, self.end_date, start_date=self.start_date, limit=1000, api_key=api_key)
+            get_prices(symbol=ticker, start_date=start_date_str, end_date=self.end_date, api_key=api_key)
+            get_financial_metrics(symbol=ticker, end_date=self.end_date, limit=10, api_key=api_key)
+            get_insider_trades(symbol=ticker, end_date=self.end_date, start_date=self.start_date, limit=1000, api_key=api_key)
+            get_company_news(symbol=ticker, end_date=self.end_date, start_date=self.start_date, limit=1000, api_key=api_key)
 
     def _update_performance_metrics(self, performance_metrics: Dict[str, Any]):
         """Update performance metrics using daily returns."""
