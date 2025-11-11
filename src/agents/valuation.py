@@ -201,7 +201,24 @@ def valuation_analyst_agent(state: AgentState, agent_id: str = "valuation_analys
             "confidence": confidence,
             "reasoning": reasoning,
         }
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
+        
+        # Format reasoning as plain text for display
+        reasoning_text = f"Signal: {signal.upper()} (Confidence: {confidence}%)\n\n"
+        
+        for key, value in reasoning.items():
+            if key == "dcf_scenario_analysis":
+                reasoning_text += "DCF Scenario Analysis:\n"
+                reasoning_text += f"  Bear Case: {value['bear_case']}\n"
+                reasoning_text += f"  Base Case: {value['base_case']}\n"
+                reasoning_text += f"  Bull Case: {value['bull_case']}\n"
+                reasoning_text += f"  WACC: {value['wacc_used']}\n"
+                reasoning_text += f"  FCF Periods: {value['fcf_periods_analyzed']}\n\n"
+            else:
+                method_name = key.replace("_analysis", "").upper()
+                reasoning_text += f"{method_name}: {value['signal'].upper()}\n"
+                reasoning_text += f"{value['details']}\n\n"
+        
+        progress.update_status(agent_id, ticker, "Done", analysis=reasoning_text.strip())
 
     # ---- Emit message (for LLM tool chain) ----
     msg = HumanMessage(content=json.dumps(valuation_analysis), name=agent_id)

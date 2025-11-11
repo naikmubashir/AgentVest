@@ -135,7 +135,28 @@ def technical_analyst_agent(state: AgentState, agent_id: str = "technical_analys
                 },
             },
         }
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(technical_analysis, indent=4))
+        
+        # Format reasoning as plain text for display
+        reasoning = technical_analysis[ticker]["reasoning"]
+        reasoning_text = f"Signal: {technical_analysis[ticker]['signal'].upper()} (Confidence: {technical_analysis[ticker]['confidence']}%)\n\n"
+        
+        for strategy, data in reasoning.items():
+            strategy_name = strategy.replace("_", " ").title()
+            reasoning_text += f"{strategy_name}: {data['signal'].upper()} ({data['confidence']}%)\n"
+            
+            # Format metrics
+            for metric_name, metric_value in data['metrics'].items():
+                formatted_name = metric_name.replace("_", " ").title()
+                if isinstance(metric_value, (int, float)):
+                    if abs(metric_value) < 1 and metric_value != 0:
+                        reasoning_text += f"  {formatted_name}: {metric_value:.4f}\n"
+                    else:
+                        reasoning_text += f"  {formatted_name}: {metric_value:.2f}\n"
+                else:
+                    reasoning_text += f"  {formatted_name}: {metric_value}\n"
+            reasoning_text += "\n"
+        
+        progress.update_status(agent_id, ticker, "Done", analysis=reasoning_text.strip())
 
     # Create the technical analyst message
     message = HumanMessage(

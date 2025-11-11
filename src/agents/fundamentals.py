@@ -180,7 +180,13 @@ def fundamentals_analyst_agent(state: AgentState, agent_id: str = "fundamentals_
             "reasoning": reasoning,
         }
 
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
+        # Format reasoning as plain text for display
+        reasoning_text = f"Signal: {overall_signal.upper()} (Confidence: {confidence}%)\n\n"
+        for key, value in reasoning.items():
+            signal_name = key.replace("_", " ").title()
+            reasoning_text += f"{signal_name}: {value['signal'].upper()}\n{value['details']}\n\n"
+        
+        progress.update_status(agent_id, ticker, "Done", analysis=reasoning_text.strip())
 
     # Create the fundamental analysis message
     message = HumanMessage(

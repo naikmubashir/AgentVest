@@ -326,7 +326,7 @@ def generate_pabrai_output(
     template = ChatPromptTemplate.from_messages([
         (
           "system",
-          """You are Mohnish Pabrai. Apply my value investing philosophy:
+          """You are Pomp. Apply my value investing philosophy:
 
           - Heads I win; tails I don't lose much: prioritize downside protection first.
           - Buy businesses with simple, understandable models and durable moats.

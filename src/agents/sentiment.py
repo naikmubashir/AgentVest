@@ -214,7 +214,34 @@ def sentiment_analyst_agent(state: AgentState, agent_id: str = "sentiment_analys
             "reasoning": reasoning,
         }
 
-        progress.update_status(agent_id, ticker, "Done", analysis=json.dumps(reasoning, indent=4))
+        # Format reasoning as plain text for display
+        reasoning_text = f"Signal: {overall_signal.upper()} (Confidence: {confidence}%)\n\n"
+        
+        # Trading Activity
+        ta = reasoning["trading_activity"]
+        reasoning_text += f"Trading Activity: {ta['signal'].upper()} ({ta['confidence']}%)\n"
+        reasoning_text += f"Volume Ratio: {ta['metrics']['volume_ratio']}, Recent Return: {ta['metrics']['recent_return']}\n"
+        reasoning_text += f"Bullish: {ta['metrics']['bullish_signals']}, Bearish: {ta['metrics']['bearish_signals']} (Weight: {ta['metrics']['weight']})\n\n"
+        
+        # Market Activity
+        ma = reasoning["market_activity"]
+        reasoning_text += f"Market Activity: {ma['signal'].upper()} ({ma['confidence']}%)\n"
+        reasoning_text += f"Total Events: {ma['metrics']['total_events']} (Bullish: {ma['metrics']['bullish_events']}, Bearish: {ma['metrics']['bearish_events']}, Neutral: {ma['metrics']['neutral_events']})\n"
+        reasoning_text += f"Weight: {ma['metrics']['weight']}\n\n"
+        
+        # Volatility Sentiment
+        vs = reasoning["volatility_sentiment"]
+        reasoning_text += f"Volatility Sentiment: {vs['signal'].upper()} ({vs['confidence']}%)\n"
+        reasoning_text += f"7-day Volatility: {vs['metrics']['volatility_7d']}\n"
+        reasoning_text += f"Bullish: {vs['metrics']['bullish_signals']}, Bearish: {vs['metrics']['bearish_signals']} (Weight: {vs['metrics']['weight']})\n\n"
+        
+        # Combined Analysis
+        ca = reasoning["combined_analysis"]
+        reasoning_text += f"Combined Analysis:\n"
+        reasoning_text += f"Total Weighted Bullish: {ca['total_weighted_bullish']}, Total Weighted Bearish: {ca['total_weighted_bearish']}\n"
+        reasoning_text += f"{ca['signal_determination']}"
+        
+        progress.update_status(agent_id, ticker, "Done", analysis=reasoning_text)
 
     # Create the sentiment message
     message = HumanMessage(
