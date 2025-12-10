@@ -23,7 +23,6 @@ This system employs several crypto-focused agents working together:
 17. Risk Manager - Calculates risk metrics and sets position limits
 18. Portfolio Manager - Makes final trading decisions and generates orders
 
-<img width="1042" alt="Screenshot 2025-03-22 at 6 19 07 PM" src="https://github.com/user-attachments/assets/cbae3dcf-b571-490d-b0ad-3f0f035ac0d4" />
 
 Note: the system does not actually make any trades.
 
